@@ -1,0 +1,12 @@
+/* Native scrolling with a quieter track and a slim, visible thumb. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #8a8a8a transparent;
+}
+
+@media (forced-colors: active) {
+  html {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}

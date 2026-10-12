@@ -1,0 +1,32 @@
+/* Keep supporting information visible alongside the desktop editor. */
+@media (min-width: 1000px) and (min-height: 800px) {
+  .sidebar {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100dvh - 48px);
+    box-sizing: border-box;
+    /* Separate the scrollbar from cards and leave room for their shadows. */
+    padding: 4px 12px 8px 4px;
+    margin-block-start: -4px;
+    margin-inline-start: -4px;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #8a8a8a transparent;
+  }
+
+  .sidebar:hover,
+  .sidebar:focus-within {
+    scrollbar-color: #616161 transparent;
+  }
+}
+
+@media (forced-colors: active) {
+  .sidebar,
+  .sidebar:hover,
+  .sidebar:focus-within {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}

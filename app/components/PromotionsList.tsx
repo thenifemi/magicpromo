@@ -1,0 +1,163 @@
+import { useState } from "react";
+import { useNavigate } from "react-router";
+type PromotionListItem = {
+  id: string;
+  shopifyDiscountId?: string | null;
+  activationToken?: string | null;
+  name: string;
+  discountPercent: number;
+  minimumProducts: number;
+  qualificationMode: string;
+  updatedAt: Date | string;
+  _count: { products: number };
+};
+export default function PromotionsList({
+  promotions,
+}: {
+  promotions: PromotionListItem[];
+}) {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const filtered = promotions.filter((p) =>
+    p.name.toLowerCase().includes(query.trim().toLowerCase()),
+  );
+  return (
+    <s-page heading="Promotions" inlineSize="large">
+      {promotions.length > 0 && (
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          onClick={() => navigate("/app/promotions/new")}
+        >
+          Create promotion
+        </s-button>
+      )}
+      {promotions.length === 0 ? (
+        <s-section accessibilityLabel="No promotions">
+          <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
+            <s-icon type="discount" size="base" />
+            <s-heading>Create your first promotion</s-heading>
+            <s-paragraph>
+              Choose products and set discount rules. Save a draft to review
+              before publishing.
+            </s-paragraph>
+            <s-button
+              variant="primary"
+              onClick={() => navigate("/app/promotions/new")}
+            >
+              Create promotion
+            </s-button>
+          </s-grid>
+        </s-section>
+      ) : (
+        <s-section padding="none" accessibilityLabel="Promotions">
+          <s-box padding="base">
+            <s-stack gap="base">
+              <s-stack direction="inline" gap="small" alignItems="center">
+                <s-heading>All promotions</s-heading>
+                <s-badge>
+                  {promotions.length}{" "}
+                  {promotions.length === 1 ? "promotion" : "promotions"}
+                </s-badge>
+              </s-stack>
+              <s-box maxInlineSize="400px">
+                <s-search-field
+                  label="Search promotions"
+                  placeholder="Search by name"
+                  value={query}
+                  onInput={(event) => setQuery(event.currentTarget.value)}
+                />
+              </s-box>
+            </s-stack>
+          </s-box>
+          {filtered.length === 0 ? (
+            <s-box padding="large">
+              <s-stack gap="base">
+                <s-heading>No matching promotions</s-heading>
+                <s-paragraph>
+                  Try another name or clear your search to see all promotions.
+                </s-paragraph>
+                <s-button onClick={() => setQuery("")}>Clear search</s-button>
+              </s-stack>
+            </s-box>
+          ) : (
+            <s-table>
+              <s-table-header-row>
+                <s-table-header listSlot="primary">Promotion</s-table-header>
+                <s-table-header listSlot="secondary">Status</s-table-header>
+                <s-table-header listSlot="labeled">Discount</s-table-header>
+                <s-table-header listSlot="labeled" format="numeric">
+                  Products
+                </s-table-header>
+                <s-table-header listSlot="labeled">Last updated</s-table-header>
+              </s-table-header-row>
+              <s-table-body>
+                {filtered.map((p) => (
+                  <s-table-row key={p.id}>
+                    <s-table-cell>
+                      <s-link
+                        href={`/app/promotions/${p.id}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          navigate(`/app/promotions/${p.id}`);
+                        }}
+                      >
+                        {p.name}
+                      </s-link>
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-badge>
+                        <s-stack
+                          direction="inline"
+                          gap="small-200"
+                          alignItems="center"
+                        >
+                          {!p.activationToken && p.shopifyDiscountId && (
+                            <s-box inlineSize="16px">
+                              <s-image
+                                src="https://cdn.shopify.com/shopifycloud/brochure/assets/brand-assets/shopify-logo-shopping-bag-full-color-66166b2e55d67988b56b4bd28b63c271e2b9713358cb723070a92bde17ad7d63.svg"
+                                alt=""
+                                aspectRatio="1"
+                                objectFit="contain"
+                              />
+                            </s-box>
+                          )}
+                          {p.activationToken
+                            ? "Needs review"
+                            : p.shopifyDiscountId
+                              ? "Linked to Shopify"
+                              : "Draft"}
+                        </s-stack>
+                      </s-badge>
+                    </s-table-cell>
+                    <s-table-cell>
+                      {p.discountPercent}% off · {p.minimumProducts}+{" "}
+                      {p.qualificationMode === "total_quantity"
+                        ? "eligible items"
+                        : "different products"}
+                    </s-table-cell>
+                    <s-table-cell>{p._count.products}</s-table-cell>
+                    <s-table-cell>
+                      {new Intl.DateTimeFormat("en", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "UTC",
+                      }).format(new Date(p.updatedAt))}{" "}
+                      UTC
+                    </s-table-cell>
+                  </s-table-row>
+                ))}
+              </s-table-body>
+            </s-table>
+          )}
+          <s-box padding="base">
+            <s-paragraph color="subdued">
+              Drafts are not active at checkout. Open a linked promotion to
+              check its current Shopify status.
+            </s-paragraph>
+          </s-box>
+        </s-section>
+      )}
+    </s-page>
+  );
+}

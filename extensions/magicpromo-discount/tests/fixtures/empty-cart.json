@@ -1,0 +1,32 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": []
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "version": 1,
+            "productIds": [
+              "gid://shopify/Product/1",
+              "gid://shopify/Product/2",
+              "gid://shopify/Product/3"
+            ],
+            "discountPercent": 15,
+            "minimumProducts": 3,
+            "qualificationMode": "distinct_products"
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}

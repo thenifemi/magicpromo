@@ -40,133 +40,264 @@
   }
   var itemLabel = (offer, labels = defaultItemLabels) => offer.mode === "distinct_products" ? labels.distinct : labels.items;
 
+  // src/client.ts
+  var pageIsVisible = () => typeof document === "undefined" || !document.hidden;
+  function createMagicpromo(options) {
+    const { pollMs = 0, isVisible = pageIsVisible } = options;
+    const listeners = /* @__PURE__ */ new Set();
+    let state = { status: "loading", offers: [], items: [] };
+    let inFlight = null;
+    let rerun = false;
+    let destroyed = false;
+    let stopPolling;
+    let stopWatching;
+    const emit = (next) => {
+      state = next;
+      for (const listener of listeners) listener(state);
+    };
+    async function load() {
+      try {
+        const items = options.cart ? await options.cart.read() : [];
+        const productIds = /* @__PURE__ */ new Set([
+          ...items.map((item) => toProductId(item.productId)),
+          ...(options.productIds?.() ?? []).map(toProductId)
+        ]);
+        const offers = await options.offers([...productIds]);
+        if (!destroyed) emit({ status: "ready", offers, items });
+      } catch (error) {
+        if (!destroyed) emit({ status: "error", offers: [], items: state.items, error });
+      }
+    }
+    function refresh() {
+      if (destroyed || !isVisible()) return Promise.resolve();
+      if (inFlight) {
+        rerun = true;
+        return inFlight;
+      }
+      inFlight = load().finally(() => {
+        inFlight = null;
+        if (rerun) {
+          rerun = false;
+          void refresh();
+        }
+      });
+      return inFlight;
+    }
+    function start() {
+      if (pollMs > 0) {
+        const timer = setInterval(() => void refresh(), pollMs);
+        stopPolling = () => clearInterval(timer);
+      }
+      stopWatching = options.cart?.watch?.(() => void refresh());
+    }
+    function stop() {
+      stopPolling?.();
+      stopWatching?.();
+      stopPolling = stopWatching = void 0;
+    }
+    return {
+      getState: () => state,
+      subscribe(listener) {
+        if (destroyed) return () => {
+        };
+        listeners.add(listener);
+        if (listeners.size === 1) start();
+        void refresh();
+        return () => {
+          if (listeners.delete(listener) && listeners.size === 0) stop();
+        };
+      },
+      refresh,
+      destroy() {
+        destroyed = true;
+        stop();
+        listeners.clear();
+      }
+    };
+  }
+
+  // src/theme/default-renderer.ts
+  var defaultRenderer = ({ placement, offer, message, progress, href, dismiss, host }) => {
+    host.style.setProperty("--mp-bg", offer.settings.background);
+    host.style.setProperty("--mp-fg", offer.settings.foreground);
+    host.dataset.position = offer.settings.position;
+    const content = document.createElement("div");
+    content.className = "mp-content";
+    const text = document.createElement("span");
+    text.textContent = message;
+    if (progress) text.setAttribute("role", "status");
+    const link = document.createElement("a");
+    link.href = href;
+    link.textContent = offer.settings.linkText;
+    content.append(text, link);
+    if (progress) {
+      const bar = document.createElement("progress");
+      bar.max = offer.minimum;
+      bar.value = Math.min(progress.count, offer.minimum);
+      bar.setAttribute("aria-label", message);
+      content.append(bar);
+    }
+    if (placement === "announcement") {
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "\xD7";
+      close.setAttribute("aria-label", host.dataset.close ?? "");
+      close.addEventListener("click", dismiss);
+      content.append(close);
+    }
+    return content;
+  };
+
+  // src/theme/sources.ts
+  var storefrontRoot = () => window.Shopify?.routes?.root || "/";
+  var withRoot = (path) => `${storefrontRoot().replace(/\/$/, "")}${path}`;
+  function appProxyOffers(path, fetchFn) {
+    return async (productIds) => {
+      const query = encodeURIComponent(productIds.join(","));
+      const response = await fetchFn(`${withRoot(path)}?products=${query}`, {
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error(`Offers request failed (${response.status})`);
+      const { offers } = await response.json();
+      return offers;
+    };
+  }
+  var CART_MUTATION = /\/cart\/(add|change|update|clear)(\.js)?(?:\?|$)/;
+  var CART_EVENTS = ["cart:updated", "cart:change", "magicpromo:cart:changed"];
+  var FORM_SETTLE_MS = 800;
+  function ajaxCart(fetchFn) {
+    return {
+      async read() {
+        const response = await fetchFn(`${storefrontRoot()}cart.js`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Cart request failed (${response.status})`);
+        const cart = await response.json();
+        return cart.items.map((item) => ({
+          productId: String(item.product_id),
+          quantity: item.quantity
+        }));
+      },
+      watch(onChange) {
+        const later = () => setTimeout(onChange, FORM_SETTLE_MS);
+        const onSubmit = (event) => {
+          if (event.target instanceof HTMLFormElement && /\/cart(?:\/|$)/.test(new URL(event.target.action).pathname))
+            later();
+        };
+        const onFieldChange = (event) => {
+          if (event.target instanceof Element && event.target.closest('form[action*="/cart"]'))
+            later();
+        };
+        const observer = "PerformanceObserver" in window ? new PerformanceObserver((list) => {
+          if (list.getEntries().some((entry) => CART_MUTATION.test(entry.name)))
+            onChange();
+        }) : void 0;
+        observer?.observe({ type: "resource", buffered: false });
+        document.addEventListener("visibilitychange", onChange);
+        window.addEventListener("pageshow", onChange);
+        for (const name of CART_EVENTS) document.addEventListener(name, onChange);
+        document.addEventListener("submit", onSubmit);
+        document.addEventListener("change", onFieldChange);
+        return () => {
+          observer?.disconnect();
+          document.removeEventListener("visibilitychange", onChange);
+          window.removeEventListener("pageshow", onChange);
+          for (const name of CART_EVENTS) document.removeEventListener(name, onChange);
+          document.removeEventListener("submit", onSubmit);
+          document.removeEventListener("change", onFieldChange);
+        };
+      }
+    };
+  }
+
   // src/theme/magicpromo-banner.ts
-  var EMPTY_CART = { items: [] };
+  var VERSION = "0.2.0";
   var POLL_MS = 15e3;
   var PROXY_PATH = /^\/apps\/[a-z0-9_-]+$/;
-  var toCartItems = (cart) => cart.items.map((item) => ({
-    productId: String(item.product_id),
-    quantity: item.quantity
-  }));
-  var groups = /* @__PURE__ */ new Map();
-  var root = () => window.Shopify?.routes?.root || "/";
-  var withRoot = (path) => `${root().replace(/\/$/, "")}${path}`;
-  async function update(group, fetchFn) {
-    if (group.busy || document.hidden || !group.elements.size) return;
-    group.busy = true;
-    try {
-      const cartResponse = await fetchFn(`${root()}cart.js`, { cache: "no-store" });
-      if (!cartResponse.ok) throw new Error("cart");
-      const cart = await cartResponse.json();
-      const productIds = /* @__PURE__ */ new Set([
-        ...cart.items.map((item) => String(item.product_id)),
-        ...[...group.elements].map((el) => el.dataset.product).filter(Boolean)
-      ]);
-      const response = await fetchFn(
-        `${withRoot(group.path)}?products=${encodeURIComponent([...productIds].join(","))}`,
-        { cache: "no-store" }
-      );
-      if (!response.ok) throw new Error("offers");
-      const { offers } = await response.json();
-      for (const element of group.elements) element.render(offers, cart);
-    } catch {
-      for (const element of group.elements) element.render([], EMPTY_CART);
-    } finally {
-      group.busy = false;
+  var renderers = /* @__PURE__ */ new Map();
+  var clients = /* @__PURE__ */ new Map();
+  var banners = /* @__PURE__ */ new Set();
+  var nativeFetch;
+  function clientFor(path) {
+    let client = clients.get(path);
+    if (!client) {
+      client = createMagicpromo({
+        offers: appProxyOffers(path, nativeFetch),
+        cart: ajaxCart(nativeFetch),
+        // Product banners need their product checked even if it isn't in the cart.
+        productIds: () => [...banners].filter((banner) => banner.path === path).map((banner) => banner.dataset.product ?? "").filter(Boolean),
+        pollMs: POLL_MS
+      });
+      clients.set(path, client);
     }
+    return client;
   }
   var MagicpromoBanner = class extends HTMLElement {
     connectedCallback() {
-      this.setupTemplate || (this.setupTemplate = this.querySelector(
-        "template[data-mp-setup]"
-      ));
-      if (this.dataset.designMode === "true") this.render([], EMPTY_CART);
-      const path = this.dataset.proxy || "";
+      this.setupTemplate || (this.setupTemplate = this.querySelector("template[data-mp-setup]"));
+      if (this.dataset.designMode === "true") this.render([], []);
+      const path = this.dataset.proxy ?? "";
       if (!PROXY_PATH.test(path)) return;
-      let group = groups.get(path);
-      if (!group) {
-        const created = { path, elements: /* @__PURE__ */ new Set(), busy: false };
-        created.timer = setInterval(() => update(created, nativeFetch), POLL_MS);
-        groups.set(path, created);
-        group = created;
-      }
-      group.elements.add(this);
-      this.group = group;
-      void update(group, nativeFetch);
+      this.path = path;
+      banners.add(this);
+      this.unsubscribe = clientFor(path).subscribe(
+        (state) => this.render(state.offers, state.items)
+      );
     }
     disconnectedCallback() {
-      const group = this.group;
-      group?.elements.delete(this);
-      if (group && !group.elements.size) {
-        clearInterval(group.timer);
-        groups.delete(group.path);
-      }
+      this.unsubscribe?.();
+      banners.delete(this);
     }
-    render(offers, cart) {
+    /** Re-render with the last data, e.g. after a renderer is registered. */
+    repaint() {
+      if (this.last) this.render(this.last.offers, this.last.items);
+    }
+    render(offers, items) {
+      this.last = { offers, items };
       const placement = this.dataset.placement;
-      const items = toCartItems(cart);
-      const offer = selectOffer(offers, placement, {
-        items,
-        productId: this.dataset.product
-      });
+      const offer = selectOffer(offers, placement, { items, productId: this.dataset.product });
       this.replaceChildren();
       this.hidden = true;
       delete this.dataset.setup;
       if (!offer) return this.renderSetup();
-      const dismissalKey = `${this.group?.path}:${offer.id}:${offer.settings.message}`;
-      if (placement === "announcement" && this.dismissed === dismissalKey) return;
-      this.style.setProperty("--mp-bg", offer.settings.background);
-      this.style.setProperty("--mp-fg", offer.settings.foreground);
-      this.dataset.position = offer.settings.position;
-      const labels = {
-        items: this.dataset.items ?? "",
-        distinct: this.dataset.distinct ?? ""
-      };
-      const content = document.createElement("div");
-      content.className = "mp-content";
-      const text = document.createElement("span");
-      const progress = placement === "cart" ? cartProgress(offer, items) : void 0;
-      if (progress) {
-        text.setAttribute("role", "status");
-        text.textContent = formatTemplate(
-          (progress.qualified ? this.dataset.qualified : this.dataset.progress) ?? "",
-          {
-            remaining: progress.remaining,
-            percent: offer.percent,
-            items: itemLabel(offer, labels)
-          }
-        );
-      } else {
-        text.textContent = formatTemplate(offer.settings.message, {
-          minimum: offer.minimum,
-          percent: offer.percent,
-          items: itemLabel(offer, labels)
-        });
+      const dismissalKey = `${this.path}:${offer.id}:${offer.settings.message}`;
+      if (this.dismissed === dismissalKey) return;
+      const context = this.context(placement, offer, items, () => {
+        this.dismissed = dismissalKey;
+        this.hidden = true;
+      });
+      const renderer = renderers.get(placement) ?? defaultRenderer;
+      let output;
+      try {
+        output = renderer(context);
+      } catch (error) {
+        console.error("[magicpromo] renderer failed", error);
+        return;
       }
-      const link = document.createElement("a");
-      link.href = withRoot(offer.settings.destination);
-      link.textContent = offer.settings.linkText;
-      content.append(text, link);
-      if (progress) {
-        const bar = document.createElement("progress");
-        bar.max = offer.minimum;
-        bar.value = Math.min(progress.count, offer.minimum);
-        bar.setAttribute("aria-label", text.textContent ?? "");
-        content.append(bar);
+      if (output == null) return;
+      if (typeof output === "string") {
+        const text = document.createElement("span");
+        text.textContent = output;
+        output = text;
       }
-      if (placement === "announcement") {
-        const close = document.createElement("button");
-        close.type = "button";
-        close.textContent = "\xD7";
-        close.setAttribute("aria-label", this.dataset.close ?? "");
-        close.addEventListener("click", () => {
-          this.dismissed = dismissalKey;
-          this.hidden = true;
-        });
-        content.append(close);
-      }
-      this.append(content);
+      this.append(output);
       this.hidden = false;
+    }
+    context(placement, offer, items, dismiss) {
+      const labels = { items: this.dataset.items ?? "", distinct: this.dataset.distinct ?? "" };
+      const values = { percent: offer.percent, items: itemLabel(offer, labels) };
+      const progress = placement === "cart" ? cartProgress(offer, items) : void 0;
+      const message = progress ? formatTemplate(
+        (progress.qualified ? this.dataset.qualified : this.dataset.progress) ?? "",
+        { ...values, remaining: progress.remaining }
+      ) : formatTemplate(offer.settings.message, { ...values, minimum: offer.minimum });
+      return {
+        placement,
+        offer,
+        message,
+        progress,
+        href: withRoot(offer.settings.destination),
+        dismiss,
+        host: this
+      };
     }
     /** In the theme editor only, show a setup card when no offer applies. */
     renderSetup() {
@@ -183,33 +314,29 @@
       this.hidden = false;
     }
   };
-  var nativeFetch;
-  function refreshAll() {
-    for (const group of groups.values()) void update(group, nativeFetch);
-  }
-  function watchCart() {
-    document.addEventListener("visibilitychange", refreshAll);
-    window.addEventListener("pageshow", refreshAll);
-    if ("PerformanceObserver" in window) {
-      new PerformanceObserver((list) => {
-        const cartChanged = list.getEntries().some((entry) => /\/cart\/(add|change|update|clear)(\.js)?(?:\?|$)/.test(entry.name));
-        if (cartChanged) refreshAll();
-      }).observe({ type: "resource", buffered: false });
+  var repaint = (placement) => {
+    for (const banner of banners)
+      if (banner.dataset.placement === placement) banner.repaint();
+  };
+  var api = {
+    version: VERSION,
+    render(placement, renderer) {
+      renderers.set(placement, renderer);
+      repaint(placement);
+      return () => {
+        if (renderers.get(placement) !== renderer) return;
+        renderers.delete(placement);
+        repaint(placement);
+      };
+    },
+    refresh() {
+      for (const client of clients.values()) void client.refresh();
     }
-    for (const name of ["cart:updated", "cart:change", "magicpromo:cart:changed"])
-      document.addEventListener(name, refreshAll);
-    document.addEventListener("submit", (event) => {
-      if (event.target instanceof HTMLFormElement && /\/cart(?:\/|$)/.test(new URL(event.target.action).pathname))
-        setTimeout(refreshAll, 800);
-    });
-    document.addEventListener("change", (event) => {
-      if (event.target instanceof Element && event.target.closest('form[action*="/cart"]'))
-        setTimeout(refreshAll, 800);
-    });
-  }
+  };
   if (!customElements.get("magicpromo-banner")) {
     nativeFetch = window.fetch.bind(window);
+    window.Magicpromo = api;
     customElements.define("magicpromo-banner", MagicpromoBanner);
-    watchCart();
+    document.dispatchEvent(new CustomEvent("magicpromo:ready", { detail: api }));
   }
 })();

@@ -58,3 +58,39 @@ with a **Refresh status** button as fallback. The merchant must save in Shopify;
 opening the editor does not mark setup complete. API/permission or parsing errors
 show an unknown status. Installed placements still require active promotion
 messaging before a shopper sees a banner. Checking status does not change the theme.
+
+## Bring your own element (theme developers)
+
+The banner script exposes `window.Magicpromo`. Register a renderer to replace the default banner for a placement (`announcement`, `product` or `cart`). Magicpromo still fetches offers, watches the cart and picks the offer; you only decide what it looks like.
+
+```html
+<script>
+  function setup(Magicpromo) {
+    Magicpromo.render("product", ({ offer, message, href }) => {
+      const badge = document.createElement("a");
+      badge.className = "my-offer-badge";
+      badge.href = href;
+      badge.textContent = message;
+      return badge;
+    });
+  }
+  // Works whether your script runs before or after Magicpromo's.
+  if (window.Magicpromo) setup(window.Magicpromo);
+  else document.addEventListener("magicpromo:ready", (e) => setup(e.detail), { once: true });
+</script>
+```
+
+The renderer receives a `RenderContext` (see `packages/sdk/src/render.ts`):
+
+| Field | Meaning |
+| --- | --- |
+| `offer` | The selected `Offer` (percent, minimum, mode, merchant settings). |
+| `message` | Ready-to-show text, already translated and filled in. |
+| `progress` | Cart only: `{ count, remaining, qualified }`. |
+| `href` | Destination with the market/locale prefix. |
+| `dismiss()` | Hides the banner until the offer or message changes. |
+| `host` | The `<magicpromo-banner>` element. |
+
+Return a DOM node, a string (rendered as text, never HTML), or `null` to hide. `render()` returns an undo function that restores the default. A renderer that throws hides its banner and logs to the console; it never breaks the page. Call `Magicpromo.refresh()` after changing the cart in a way Magicpromo can't detect.
+
+The theme script is generated: edit `packages/sdk/src/theme` and run `pnpm --filter @magicpromo/sdk build:theme`.

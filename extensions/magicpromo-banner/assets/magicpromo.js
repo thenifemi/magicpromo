@@ -1,55 +1,98 @@
+// Generated from packages/sdk/src/theme. Do not edit; run pnpm build:theme.
+"use strict";
 (() => {
-  if (customElements.get("magicpromo-banner")) return;
-  const groups = new Map();
-  const format = (template, values) =>
-    template.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match);
-  const root = window.Shopify?.routes?.root || "/";
-  const nativeFetch = window.fetch.bind(window);
-  async function update(group) {
+  // src/core.ts
+  var defaultItemLabels = {
+    items: "eligible items",
+    distinct: "different eligible products"
+  };
+  var toProductId = (id) => String(id).split("/").pop() ?? "";
+  var isEligible = (offer, productId) => offer.eligibleProductIds.includes(toProductId(productId));
+  function selectOffer(offers, placement, context = {}) {
+    const { items = [], productId } = context;
+    const candidates = offers.filter(
+      (offer) => offer.settings[placement] && (placement !== "product" || productId != null && isEligible(offer, productId))
+    );
+    if (placement === "cart") {
+      const relevant = candidates.find(
+        (offer) => items.some((item) => item.quantity > 0 && isEligible(offer, item.productId))
+      );
+      if (relevant) return relevant;
+    }
+    return candidates[0];
+  }
+  function cartProgress(offer, items) {
+    const eligible = items.filter(
+      (item) => item.quantity > 0 && isEligible(offer, item.productId)
+    );
+    const count = offer.mode === "distinct_products" ? new Set(eligible.map((item) => toProductId(item.productId))).size : eligible.reduce((sum, item) => sum + item.quantity, 0);
+    return {
+      count,
+      remaining: Math.max(0, offer.minimum - count),
+      qualified: count >= offer.minimum
+    };
+  }
+  function formatTemplate(template, values) {
+    return template.replace(
+      /\{(\w+)\}/g,
+      (match, key) => key in values ? String(values[key]) : match
+    );
+  }
+  var itemLabel = (offer, labels = defaultItemLabels) => offer.mode === "distinct_products" ? labels.distinct : labels.items;
+
+  // src/theme/magicpromo-banner.ts
+  var EMPTY_CART = { items: [] };
+  var POLL_MS = 15e3;
+  var PROXY_PATH = /^\/apps\/[a-z0-9_-]+$/;
+  var toCartItems = (cart) => cart.items.map((item) => ({
+    productId: String(item.product_id),
+    quantity: item.quantity
+  }));
+  var groups = /* @__PURE__ */ new Map();
+  var root = () => window.Shopify?.routes?.root || "/";
+  var withRoot = (path) => `${root().replace(/\/$/, "")}${path}`;
+  async function update(group, fetchFn) {
     if (group.busy || document.hidden || !group.elements.size) return;
     group.busy = true;
     try {
-      const cartResponse = await nativeFetch(`${root}cart.js`, {
-        cache: "no-store",
-      });
+      const cartResponse = await fetchFn(`${root()}cart.js`, { cache: "no-store" });
       if (!cartResponse.ok) throw new Error("cart");
       const cart = await cartResponse.json();
-      const productIds = [
-        ...new Set([
-          ...cart.items.map((item) => String(item.product_id)),
-          ...[...group.elements]
-            .map((el) => el.dataset.product)
-            .filter(Boolean),
-        ]),
-      ];
-      const response = await nativeFetch(
-        `${root.replace(/\/$/, "")}${group.path}?products=${encodeURIComponent(productIds.join(","))}`,
-        { cache: "no-store" },
+      const productIds = /* @__PURE__ */ new Set([
+        ...cart.items.map((item) => String(item.product_id)),
+        ...[...group.elements].map((el) => el.dataset.product).filter(Boolean)
+      ]);
+      const response = await fetchFn(
+        `${withRoot(group.path)}?products=${encodeURIComponent([...productIds].join(","))}`,
+        { cache: "no-store" }
       );
       if (!response.ok) throw new Error("offers");
       const { offers } = await response.json();
       for (const element of group.elements) element.render(offers, cart);
     } catch {
-      for (const element of group.elements) element.render([], { items: [] });
+      for (const element of group.elements) element.render([], EMPTY_CART);
     } finally {
       group.busy = false;
     }
   }
-  class MagicpromoBanner extends HTMLElement {
+  var MagicpromoBanner = class extends HTMLElement {
     connectedCallback() {
-      this.setupTemplate ||= this.querySelector("template[data-mp-setup]");
-      if (this.dataset.designMode === "true") this.render([], { items: [] });
-      const path = this.dataset.proxy;
-      if (!/^\/apps\/[a-z0-9_-]+$/.test(path || "")) return;
+      this.setupTemplate || (this.setupTemplate = this.querySelector(
+        "template[data-mp-setup]"
+      ));
+      if (this.dataset.designMode === "true") this.render([], EMPTY_CART);
+      const path = this.dataset.proxy || "";
+      if (!PROXY_PATH.test(path)) return;
       let group = groups.get(path);
       if (!group) {
-        group = { path, elements: new Set(), busy: false };
-        groups.set(path, group);
-        group.timer = setInterval(() => update(group), 15000);
+        const created = { path, elements: /* @__PURE__ */ new Set(), busy: false };
+        created.timer = setInterval(() => update(created, nativeFetch), POLL_MS);
+        groups.set(path, created);
+        group = created;
       }
       group.elements.add(this);
       this.group = group;
-      update(group);
+      void update(group, nativeFetch);
     }
     disconnectedCallback() {
       const group = this.group;
@@ -61,97 +104,61 @@
     }
     render(offers, cart) {
       const placement = this.dataset.placement;
-      const candidates = offers.filter(
-        (p) =>
-          p.settings[placement] &&
-          (placement !== "product" ||
-            p.eligibleProductIds.includes(this.dataset.product)),
-      );
-      const offer =
-        (placement === "cart"
-          ? candidates.find((p) =>
-              cart.items.some(
-                (item) =>
-                  item.quantity > 0 &&
-                  p.eligibleProductIds.includes(String(item.product_id)),
-              ),
-            )
-          : undefined) || candidates[0];
+      const items = toCartItems(cart);
+      const offer = selectOffer(offers, placement, {
+        items,
+        productId: this.dataset.product
+      });
       this.replaceChildren();
       this.hidden = true;
       delete this.dataset.setup;
-      if (!offer) {
-        if (this.dataset.designMode === "true") {
-          this.dataset.setup = "true";
-          if (this.setupTemplate) {
-            this.append(this.setupTemplate.content.cloneNode(true));
-          } else {
-            const message = document.createElement("div");
-            message.className = "mp-placeholder";
-            message.textContent = this.dataset.placeholder;
-            this.append(message);
-          }
-          this.hidden = false;
-        }
-        return;
-      }
-      const dismissalKey = `${this.group.path}:${offer.id}:${offer.settings.message}`;
-      if (placement === "announcement" && this.dismissed === dismissalKey)
-        return;
+      if (!offer) return this.renderSetup();
+      const dismissalKey = `${this.group?.path}:${offer.id}:${offer.settings.message}`;
+      if (placement === "announcement" && this.dismissed === dismissalKey) return;
       this.style.setProperty("--mp-bg", offer.settings.background);
       this.style.setProperty("--mp-fg", offer.settings.foreground);
       this.dataset.position = offer.settings.position;
+      const labels = {
+        items: this.dataset.items ?? "",
+        distinct: this.dataset.distinct ?? ""
+      };
       const content = document.createElement("div");
       content.className = "mp-content";
       const text = document.createElement("span");
-      let count = 0;
-      if (placement === "cart") {
-        const eligible = cart.items.filter((item) =>
-          offer.eligibleProductIds.includes(String(item.product_id)),
-        );
-        count =
-          offer.mode === "distinct_products"
-            ? new Set(eligible.map((item) => String(item.product_id))).size
-            : eligible.reduce((sum, item) => sum + item.quantity, 0);
+      const progress = placement === "cart" ? cartProgress(offer, items) : void 0;
+      if (progress) {
         text.setAttribute("role", "status");
-        text.textContent = format(
-          count >= offer.minimum
-            ? this.dataset.qualified
-            : this.dataset.progress,
+        text.textContent = formatTemplate(
+          (progress.qualified ? this.dataset.qualified : this.dataset.progress) ?? "",
           {
-            remaining: Math.max(0, offer.minimum - count),
+            remaining: progress.remaining,
             percent: offer.percent,
-            items:
-              offer.mode === "distinct_products"
-                ? this.dataset.distinct
-                : this.dataset.items,
-          },
+            items: itemLabel(offer, labels)
+          }
         );
-      } else
-        text.textContent = format(offer.settings.message, {
+      } else {
+        text.textContent = formatTemplate(offer.settings.message, {
           minimum: offer.minimum,
           percent: offer.percent,
-          items:
-            offer.mode === "distinct_products"
-              ? this.dataset.distinct
-              : this.dataset.items,
+          items: itemLabel(offer, labels)
         });
+      }
       const link = document.createElement("a");
-      link.href = `${root.replace(/\/$/, "")}${offer.settings.destination}`;
+      link.href = withRoot(offer.settings.destination);
       link.textContent = offer.settings.linkText;
       content.append(text, link);
-      if (placement === "cart") {
-        const progress = document.createElement("progress");
-        progress.max = offer.minimum;
-        progress.value = Math.min(count, offer.minimum);
-        progress.setAttribute("aria-label", text.textContent);
-        content.append(progress);
+      if (progress) {
+        const bar = document.createElement("progress");
+        bar.max = offer.minimum;
+        bar.value = Math.min(progress.count, offer.minimum);
+        bar.setAttribute("aria-label", text.textContent ?? "");
+        content.append(bar);
       }
       if (placement === "announcement") {
         const close = document.createElement("button");
         close.type = "button";
-        close.textContent = "×";
-        close.setAttribute("aria-label", this.dataset.close);
+        close.textContent = "\xD7";
+        close.setAttribute("aria-label", this.dataset.close ?? "");
         close.addEventListener("click", () => {
           this.dismissed = dismissalKey;
           this.hidden = true;
@@ -161,41 +168,48 @@
       this.append(content);
       this.hidden = false;
     }
-  }
-  customElements.define("magicpromo-banner", MagicpromoBanner);
-  const refresh = () => {
-    for (const group of groups.values()) update(group);
+    /** In the theme editor only, show a setup card when no offer applies. */
+    renderSetup() {
+      if (this.dataset.designMode !== "true") return;
+      this.dataset.setup = "true";
+      if (this.setupTemplate) {
+        this.append(this.setupTemplate.content.cloneNode(true));
+      } else {
+        const message = document.createElement("div");
+        message.className = "mp-placeholder";
+        message.textContent = this.dataset.placeholder ?? "";
+        this.append(message);
+      }
+      this.hidden = false;
+    }
   };
-  document.addEventListener("visibilitychange", refresh);
-  window.addEventListener("pageshow", refresh);
-  if ("PerformanceObserver" in window) {
-    const observer = new PerformanceObserver((list) => {
-      if (
-        list
-          .getEntries()
-          .some((entry) =>
-            /\/cart\/(add|change|update|clear)(\.js)?(?:\?|$)/.test(entry.name),
-          )
-      )
-        refresh();
-    });
-    observer.observe({ type: "resource", buffered: false });
+  var nativeFetch;
+  function refreshAll() {
+    for (const group of groups.values()) void update(group, nativeFetch);
   }
-  document.addEventListener("cart:updated", refresh);
-  document.addEventListener("cart:change", refresh);
-  document.addEventListener("magicpromo:cart:changed", refresh);
-  document.addEventListener("submit", (event) => {
-    if (
-      event.target instanceof HTMLFormElement &&
-      /\/cart(?:\/|$)/.test(new URL(event.target.action).pathname)
-    )
-      setTimeout(refresh, 800);
-  });
-  document.addEventListener("change", (event) => {
-    if (
-      event.target instanceof Element &&
-      event.target.closest('form[action*="/cart"]')
-    )
-      setTimeout(refresh, 800);
-  });
+  function watchCart() {
+    document.addEventListener("visibilitychange", refreshAll);
+    window.addEventListener("pageshow", refreshAll);
+    if ("PerformanceObserver" in window) {
+      new PerformanceObserver((list) => {
+        const cartChanged = list.getEntries().some((entry) => /\/cart\/(add|change|update|clear)(\.js)?(?:\?|$)/.test(entry.name));
+        if (cartChanged) refreshAll();
+      }).observe({ type: "resource", buffered: false });
+    }
+    for (const name of ["cart:updated", "cart:change", "magicpromo:cart:changed"])
+      document.addEventListener(name, refreshAll);
+    document.addEventListener("submit", (event) => {
+      if (event.target instanceof HTMLFormElement && /\/cart(?:\/|$)/.test(new URL(event.target.action).pathname))
+        setTimeout(refreshAll, 800);
+    });
+    document.addEventListener("change", (event) => {
+      if (event.target instanceof Element && event.target.closest('form[action*="/cart"]'))
+        setTimeout(refreshAll, 800);
+    });
+  }
+  if (!customElements.get("magicpromo-banner")) {
+    nativeFetch = window.fetch.bind(window);
+    customElements.define("magicpromo-banner", MagicpromoBanner);
+    watchCart();
+  }
 })();

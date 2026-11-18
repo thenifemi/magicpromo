@@ -107,3 +107,17 @@ test('setup preview is editor-only and is replaced when an offer becomes availab
   assert.equal(el.hidden, true);
   assert.equal(el.children.length, 0);
 });
+
+test('theme asset is the current build of packages/sdk/src/theme', () => {
+  const output = require('esbuild').buildSync({
+    absWorkingDir: require('node:path').resolve('packages/sdk'),
+    entryPoints: ['src/theme/magicpromo-banner.ts'],
+    bundle: true, format: 'iife', target: 'es2020', legalComments: 'none', write: false,
+    banner: { js: '// Generated from packages/sdk/src/theme. Do not edit; run pnpm build:theme.' },
+  });
+  assert.equal(
+    fs.readFileSync('extensions/magicpromo-banner/assets/magicpromo.js', 'utf8'),
+    output.outputFiles[0].text,
+    'Run: pnpm --filter @magicpromo/sdk build:theme',
+  );
+});

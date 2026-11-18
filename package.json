@@ -3,10 +3,10 @@
   "private": true,
   "scripts": {
     "build": "react-router build",
-    "dev": "shopify app dev",
+    "dev": "shopify app dev --config development",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
-    "deploy": "shopify app deploy",
+    "deploy": "shopify app deploy --config development",
     "config:use": "shopify app config use",
     "env": "shopify app env",
     "start": "react-router-serve ./build/server/index.js",
@@ -22,7 +22,8 @@
     "db:postgres:generate": "npm run db:postgres:schema && prisma generate --schema prisma/postgresql/schema.prisma",
     "db:postgres:migrate": "prisma migrate deploy --schema prisma/postgresql/schema.prisma",
     "build:render": "npm run db:postgres:generate && npm run build",
-    "start:render": "npm run db:postgres:migrate && npm run start"
+    "start:render": "npm run db:postgres:migrate && npm run start",
+    "deploy:production": "shopify app deploy --config production"
   },
   "type": "module",
   "engines": {

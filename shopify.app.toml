@@ -1,13 +1,14 @@
+# Default configuration targets Magicpromo Dev. Hosted releases use --config production.
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "e306339e4e0012ba5f3d1a42607324d4"
+client_id = "9e6dabfa2ea6894ed70bd75ae6cf22b2"
 application_url = "https://example.com"
 embedded = true
-name = "magicpromo"
+name = "Magicpromo Dev"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,write_metaobjects,write_metaobject_definitions,write_discounts"
+scopes = "write_products,write_metaobjects,write_metaobject_definitions,write_discounts,read_themes,write_app_proxy"
 
 [product.metafields.app.demo_info]
 type = "single_line_text_field"
@@ -45,8 +46,12 @@ api_version = "2027-01"
   topics = [ "app/scopes_update" ]
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://example.com/auth/callback" ]
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+
+[app_proxy]
+url = "/storefront"
+prefix = "apps"
+subpath = "magicpromo-dev"

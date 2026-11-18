@@ -31,3 +31,5 @@ database.sqlite
 /backups/
 /prisma/*.sqlite-*
 !.env.example
+
+/prisma/*.sqlite

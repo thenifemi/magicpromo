@@ -2,7 +2,7 @@
 
 ## Database paths
 
-- Local development: `prisma/schema.prisma` and `prisma/migrations` still use SQLite. Existing data remains in `prisma/dev.sqlite`; a pre-migration backup is in the ignored `backups/` directory.
+- Local development: `prisma/schema.prisma` and `prisma/migrations` still use SQLite. Magicpromo Dev uses `prisma/magicpromo-dev.sqlite`. Earlier data remains in `prisma/dev.sqlite`; a pre-migration backup is in the ignored `backups/` directory.
 - Render: `prisma/postgresql/schema.prisma` and its own `migrations` directory use PostgreSQL through `DATABASE_URL`.
 - `npm run db:postgres:schema` derives the PostgreSQL schema from the local model definitions. After changing models, generate and review migrations for both providers. Generating the schema alone does not migrate a database.
 - `npm run build:render` generates the PostgreSQL client then builds the web app. `npm run start:render` applies PostgreSQL migrations before starting the server. Docker uses these scripts automatically.
@@ -26,3 +26,12 @@ The initial PostgreSQL migration creates empty tables. It does **not** transfer 
 ## Learning database
 
 The chosen free Render database shows an expiry of November 11, 2026. Upgrade or export the learning data before expiry if you want to keep it.
+
+## Separate Shopify apps
+
+- `npm run dev` explicitly uses `shopify.app.development.toml` and Magicpromo Dev. The conventional `shopify.app.toml` also targets Dev.
+- `npm run deploy` releases the development app only.
+- `npm run deploy:production` releases the hosted Magicpromo app using `shopify.app.production.toml`.
+- Render keeps the original Magicpromo credentials and PostgreSQL database. Do not replace those with Dev credentials.
+- Install Magicpromo Dev by opening the preview from `npm run dev`. It starts with an empty local database; historical sessions and discount links belong to the original app.
+- Separate app registrations do not isolate store data. Both apps can affect the same store; use a separate development store for full isolation.

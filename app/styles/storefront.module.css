@@ -1,0 +1,50 @@
+.themeToolbar,
+.promotionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.placements {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.placementCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+.description {
+  flex: 1;
+  min-height: 64px;
+}
+.preview {
+  border-radius: 8px;
+  background: #f5f4f8;
+  padding: 8px 8px 12px;
+  text-align: center;
+}
+.preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.previewCaption {
+  color: #616161;
+  font-size: 11px;
+  line-height: 16px;
+}
+@media (max-width: 760px) {
+  .placements {
+    grid-template-columns: 1fr;
+  }
+  .description {
+    min-height: 0;
+  }
+  .preview svg {
+    max-height: 180px;
+  }
+}

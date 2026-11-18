@@ -1,0 +1,34 @@
+{% doc %}
+  Renders the editor-only setup preview for a promotion placement.
+  @param {string} placement - The announcement, product or cart placement.
+{% enddoc %}
+{% if request.design_mode %}
+  <template data-mp-setup>
+    <div class="mp-setup">
+      <div class="mp-setup-header">
+        <div class="mp-setup-brand">
+          <svg class="mp-setup-logo" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#7544EC"/><path d="M8 23V11l8 7 8-7v12" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="m24 4 1.2 3.8L29 9l-3.8 1.2L24 14l-1.2-3.8L19 9l3.8-1.2L24 4Z" fill="#F6DC57"/></svg>
+          <span>Magicpromo</span>
+        </div>
+        <span class="mp-setup-badge">{{ 'setup.editor_only' | t }}</span>
+      </div>
+      <div class="mp-setup-intro">
+        <h2 class="mp-setup-title">{% case placement %}{% when 'cart' %}{{ 'setup.cart_title' | t }}{% when 'product' %}{{ 'setup.product_title' | t }}{% else %}{{ 'setup.announcement_title' | t }}{% endcase %}</h2>
+        <p class="mp-setup-description">{{ 'setup.description' | t }}</p>
+      </div>
+      <ol class="mp-setup-steps">
+        <li><span class="mp-setup-number" aria-hidden="true">1</span><div><strong>{{ 'setup.save_title' | t }}</strong><p>{{ 'setup.save_description' | t }}</p></div></li>
+        <li><span class="mp-setup-number" aria-hidden="true">2</span><div><strong>{{ 'setup.choose_title' | t }}</strong><p>{{ 'setup.choose_description' | t }}</p></div></li>
+        <li><span class="mp-setup-number" aria-hidden="true">3</span><div><strong>{{ 'setup.publish_title' | t }}</strong><p>{{ 'setup.publish_description' | t }}</p></div></li>
+      </ol>
+      {% assign app_handle = app.metafields.magicpromo.app_handle.value %}
+      {% if app_handle != blank %}
+        <div class="mp-setup-actions">
+          <a class="mp-setup-cta" href="https://{{ shop.permanent_domain }}/admin/apps/{{ app_handle | url_encode }}/app/storefront" target="_blank" rel="noopener noreferrer">{{ 'setup.finish' | t }}<span aria-hidden="true">↗</span></a>
+          <span class="mp-setup-hint">{{ 'setup.save_first' | t }}</span>
+        </div>
+      {% endif %}
+      <div class="mp-setup-footer"><span class="mp-setup-spark" aria-hidden="true">✦</span><span>{{ 'setup.footer' | t }}</span></div>
+    </div>
+  </template>
+{% endif %}

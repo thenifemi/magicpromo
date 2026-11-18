@@ -1,0 +1,13 @@
+<magicpromo-banner data-placement="{{ template.name }}" data-product="{{ product.id }}" data-proxy="{{ app.metafields.magicpromo.proxy_path.value | escape }}" data-design-mode="{{ request.design_mode }}" data-placeholder="{{ 'banner.setup' | t | escape }}" data-progress="{{ 'banner.progress' | t | escape }}" data-qualified="{{ 'banner.qualified' | t | escape }}" data-items="{{ 'banner.items' | t | escape }}" data-distinct="{{ 'banner.distinct' | t | escape }}" hidden {{ block.shopify_attributes }}>
+  {% render 'setup-preview', placement: template.name %}
+</magicpromo-banner>
+{% schema %}
+{
+  "name": "Magicpromo offer",
+  "target": "section",
+  "stylesheet": "magicpromo.css",
+  "javascript": "magicpromo.js",
+  "enabled_on": { "templates": ["product", "cart"] },
+  "settings": []
+}
+{% endschema %}

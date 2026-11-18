@@ -1,0 +1,231 @@
+magicpromo-banner {
+  display: block;
+  font: inherit;
+  color: var(--mp-fg, #fff8ed);
+  background: var(--mp-bg, #251510);
+}
+magicpromo-banner[hidden] {
+  display: none !important;
+}
+magicpromo-banner .mp-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 14px 48px 14px 20px;
+  position: relative;
+}
+magicpromo-banner[data-placement="announcement"] {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 30;
+}
+magicpromo-banner[data-position="top"] {
+  top: 0;
+}
+magicpromo-banner[data-position="bottom"] {
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+magicpromo-banner:not([data-placement="announcement"]) {
+  border-radius: 8px;
+  margin-block: 16px;
+}
+magicpromo-banner a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+magicpromo-banner button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: 22px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+magicpromo-banner a:focus-visible,
+magicpromo-banner button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+magicpromo-banner progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--mp-fg);
+}
+magicpromo-banner[data-design-mode="true"] .mp-placeholder {
+  padding: 16px;
+}
+
+magicpromo-banner[data-setup="true"] {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  background: #fff;
+  color: #292335;
+  border: 1px solid #e4dcf5;
+  border-radius: 16px;
+  margin: 20px auto;
+  max-width: 960px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px #35205a08;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-align: start;
+}
+magicpromo-banner .mp-setup {
+  container-type: inline-size;
+  padding: 24px;
+}
+magicpromo-banner .mp-setup-header,
+magicpromo-banner .mp-setup-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+magicpromo-banner .mp-setup-header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+magicpromo-banner .mp-setup-brand {
+  font-size: 16px;
+  font-weight: 750;
+  color: #332345;
+}
+magicpromo-banner .mp-setup-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+magicpromo-banner .mp-setup-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #68577f;
+  background: #f3effa;
+  border-radius: 99px;
+  padding: 5px 10px;
+}
+magicpromo-banner .mp-setup-intro {
+  margin: 24px 0 20px;
+}
+magicpromo-banner .mp-setup-title {
+  font: inherit;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  color: #292335;
+  margin: 0 0 8px;
+}
+magicpromo-banner .mp-setup-description {
+  margin: 0;
+  color: #6c6575;
+  font-size: 14px;
+}
+magicpromo-banner .mp-setup-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 12px;
+}
+magicpromo-banner .mp-setup-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 12px;
+  background: #f8f6fc;
+  border: 1px solid #eee8f7;
+  border-radius: 10px;
+  margin: 0;
+}
+magicpromo-banner .mp-setup-number {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #6940c9;
+  background: #eae1fc;
+  font-size: 12px;
+  font-weight: 700;
+}
+magicpromo-banner .mp-setup-steps strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: #332345;
+  margin: 2px 0 6px;
+}
+magicpromo-banner .mp-setup-steps p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #6c6575;
+}
+magicpromo-banner .mp-setup-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #eee8f7;
+  margin-top: 20px;
+  padding-top: 14px;
+  font-size: 12px;
+  color: #6c6575;
+}
+magicpromo-banner .mp-setup-spark {
+  color: #7544ec;
+  font-size: 18px;
+}
+@container (max-width: 600px) {
+  magicpromo-banner .mp-setup-steps {
+    grid-template-columns: 1fr;
+  }
+  magicpromo-banner .mp-setup-title {
+    font-size: 21px;
+  }
+}
+magicpromo-banner .mp-setup-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 20px;
+}
+magicpromo-banner a.mp-setup-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: #7544ec;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-decoration: none;
+}
+magicpromo-banner a.mp-setup-cta:hover {
+  background: #6132ce;
+}
+magicpromo-banner a.mp-setup-cta:focus-visible {
+  outline: 2px solid #7544ec;
+  outline-offset: 3px;
+}
+magicpromo-banner .mp-setup-hint {
+  font-size: 12px;
+  color: #6c6575;
+}

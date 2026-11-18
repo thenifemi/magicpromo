@@ -1,0 +1,26 @@
+{
+  "banner": {
+    "setup": "Magicpromo: enable a placement and publish an active promotion. Finish setup in Magicpromo → Storefront.",
+    "close": "Dismiss promotion",
+    "progress": "Add {remaining} more {items} to qualify for {percent}% off.",
+    "qualified": "You qualify for {percent}% off eligible items. Final discount calculated at checkout.",
+    "items": "eligible items",
+    "distinct": "different eligible products"
+  },
+  "setup": {
+    "editor_only": "Theme editor only",
+    "cart_title": "A little nudge. A fuller cart.",
+    "product_title": "Give your offer a moment to shine.",
+    "announcement_title": "Your next offer, front and center.",
+    "description": "Your placement is ready to customize. Bring it to life in three simple steps.",
+    "save_title": "Save this placement",
+    "save_description": "Click Save in the theme editor to keep it here.",
+    "choose_title": "Choose your promotion",
+    "choose_description": "Go to Magicpromo → Storefront and open Edit messaging for your offer.",
+    "publish_title": "Turn on your message",
+    "publish_description": "Enable this placement and publish its messaging. Make sure the promotion is active.",
+    "footer": "Only you can see this setup card. Shoppers see your offer when it’s ready.",
+    "finish": "Finish setup in Magicpromo",
+    "save_first": "Save your theme first. Opens in a new tab."
+  }
+}

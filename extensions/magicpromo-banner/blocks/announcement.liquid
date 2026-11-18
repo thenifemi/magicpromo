@@ -1,0 +1,12 @@
+<magicpromo-banner data-placement="announcement" data-proxy="{{ app.metafields.magicpromo.proxy_path.value | escape }}" data-design-mode="{{ request.design_mode }}" data-placeholder="{{ 'banner.setup' | t | escape }}" data-close="{{ 'banner.close' | t | escape }}" data-items="{{ 'banner.items' | t | escape }}" data-distinct="{{ 'banner.distinct' | t | escape }}" hidden>
+  {% render 'setup-preview', placement: 'announcement' %}
+</magicpromo-banner>
+{% schema %}
+{
+  "name": "Magicpromo announcements",
+  "target": "body",
+  "stylesheet": "magicpromo.css",
+  "javascript": "magicpromo.js",
+  "settings": []
+}
+{% endschema %}

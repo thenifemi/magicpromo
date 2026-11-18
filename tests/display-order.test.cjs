@@ -1,0 +1,40 @@
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { PrismaClient } = require('@prisma/client');
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'magicpromo-order-'));
+let db, saveDisplayOrder, arrangePromotions;
+before(async () => {
+  const database = path.join(temp, 'test.sqlite');
+  execFileSync('python3', ['-c', 'import sqlite3,pathlib,sys\nc=sqlite3.connect(sys.argv[1])\nfor p in sorted(pathlib.Path(sys.argv[2]).glob("*/migration.sql")): c.executescript(p.read_text())\nc.close()', database, path.resolve('prisma/migrations')]);
+  db = new PrismaClient({ datasources: { db: { url: 'file:' + database } } });
+  global.prismaGlobal = db;
+  const result = require('esbuild').buildSync({ entryPoints: ['app/models/display-order.server.ts'], bundle: true, platform: 'node', format: 'cjs', external: ['@prisma/client'], write: false });
+  const mod = { exports: {} };
+  new Function('module', 'exports', 'require', result.outputFiles[0].text)(mod, mod.exports, require);
+  ({ saveDisplayOrder, arrangePromotions } = mod.exports);
+  for (const [id, shop] of [['a', 'one'], ['b', 'one'], ['c', 'two']]) await db.promotionDraft.create({ data: { id, shop, name: id } });
+});
+after(async () => { await db.$disconnect(); delete global.prismaGlobal; fs.rmSync(temp, { recursive: true }); });
+test('saves full shop-scoped order and rejects stale or foreign lists', async () => {
+  assert.equal(await saveDisplayOrder('one', ['b', 'c'], 0), false);
+  assert.equal(await saveDisplayOrder('one', ['b', 'b'], 0), false);
+  assert.equal(await saveDisplayOrder('one', ['b'], 0), false);
+  assert.equal(await saveDisplayOrder('one', ['b', 'a'], 0), true);
+  assert.equal(await saveDisplayOrder('one', ['a', 'b'], 0), false);
+  assert.equal(await saveDisplayOrder('one', ['a', 'b'], 1), true);
+  assert.equal(await saveDisplayOrder('one', ['b', 'a'], 1), false);
+  const row = await db.storefrontDisplayOrder.findUnique({ where: { shop: 'one' } });
+  assert.deepEqual(JSON.parse(row.promotionIds), ['a', 'b']);
+  assert.equal(row.revision, 2);
+  assert.equal(await db.storefrontDisplayOrder.findUnique({ where: { shop: 'two' } }), null);
+});
+test('new promotions append after saved order; legacy priority is preserved before first save', () => {
+  const settings = (priority) => JSON.stringify({ announcement: true, product: false, cart: true, message: 'Offer', linkText: 'Shop', destination: '/collections/all', background: '#000000', foreground: '#ffffff', position: 'bottom', priority });
+  const promos = [{ id: 'a', storefrontSettings: settings(1), shopifyDiscountId: '1' }, { id: 'b', storefrontSettings: settings(9), shopifyDiscountId: '2' }, { id: 'new', storefrontSettings: settings(100), shopifyDiscountId: '3' }];
+  assert.deepEqual(arrangePromotions(promos, ['a', 'b']).map((p) => p.id), ['a', 'b', 'new']);
+  assert.deepEqual(arrangePromotions(promos, []).map((p) => p.id), ['new', 'b', 'a']);
+});

@@ -172,3 +172,10 @@ test('a throwing renderer hides the banner instead of breaking the page', () => 
   assert.doesNotThrow(() => el.render([offer], []));
   assert.equal(el.hidden, true);
 });
+
+test('custom renderers can fall back to the default banner per offer', () => {
+  const el = banner('product');
+  el.api.render('product', (ctx) => ctx.offer.id === 'other' ? 'custom' : el.api.defaultRenderer(ctx));
+  el.render([offer], []);
+  assert.equal(el.children[0].className, 'mp-content');
+});

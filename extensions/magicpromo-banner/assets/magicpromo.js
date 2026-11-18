@@ -320,6 +320,7 @@
   };
   var api = {
     version: VERSION,
+    defaultRenderer,
     render(placement, renderer) {
       renderers.set(placement, renderer);
       repaint(placement);

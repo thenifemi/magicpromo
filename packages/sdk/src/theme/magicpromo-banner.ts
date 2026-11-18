@@ -166,6 +166,7 @@ const repaint = (placement: Placement) => {
 
 const api: MagicpromoThemeApi = {
   version: VERSION,
+  defaultRenderer,
   render(placement, renderer) {
     renderers.set(placement, renderer);
     repaint(placement);

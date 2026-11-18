@@ -27,5 +27,7 @@ export type MagicpromoThemeApi = {
   version: string;
   /** Replaces the default banner for one placement. Returns an undo function. */
   render: (placement: Placement, renderer: Renderer) => () => void;
+  /** The built-in banner. Return it to keep the default for some offers. */
+  defaultRenderer: Renderer;
   refresh: () => void;
 };

@@ -1,5 +1,6 @@
-import type { Graphql } from "./collection.server";
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 import { isDevelopmentApp } from "../lib/environment";
+import type { MetafieldsSetInput } from "../types/admin.types";
 
 export const THEME_SETUP = `#graphql
   query MagicpromoThemeSetup {
@@ -19,20 +20,15 @@ export const SET_PROXY = `#graphql
     }
   }
 `;
-export async function themeSetup(graphql: Graphql, clientId: string) {
+export async function themeSetup(graphql: AdminGraphqlClient, clientId: string) {
   const development = isDevelopmentApp(clientId);
   const path = development ? "/apps/magicpromo-dev" : "/apps/magicpromo";
   const response = await graphql(THEME_SETUP);
-  const result = await response.json();
-  if (
-    !response.ok ||
-    result.errors?.length ||
-    !result.data?.currentAppInstallation
-  )
-    throw new Error("Theme setup unavailable");
-  const installation = result.data.currentAppInstallation;
+  const { data } = await response.json();
+  if (!data?.currentAppInstallation) throw new Error("Theme setup unavailable");
+  const installation = data.currentAppInstallation;
   const handle = installation.app?.handle;
-  const metafields = [];
+  const metafields: MetafieldsSetInput[] = [];
   if (installation.proxyPath?.value !== path) {
     metafields.push({
       ownerId: installation.id,
@@ -57,18 +53,12 @@ export async function themeSetup(graphql: Graphql, clientId: string) {
         metafields,
       },
     });
-    const body = await saved.json();
-    if (
-      !saved.ok ||
-      body.errors?.length ||
-      !body.data?.metafieldsSet ||
-      body.data.metafieldsSet.userErrors.length
-    )
+    const { data: setData } = await saved.json();
+    // Mutations report validation problems in userErrors, not by throwing.
+    if (!setData?.metafieldsSet || setData.metafieldsSet.userErrors.length)
       throw new Error("Theme connection unavailable");
   }
-  return (
-    result.data.themes.nodes as { id: string; name: string; role: string }[]
-  )
+  return (data.themes?.nodes ?? [])
     .filter((theme) => development || theme.role !== "DEVELOPMENT")
     .map((theme) => ({ ...theme, id: theme.id.split("/").pop()! }));
 }

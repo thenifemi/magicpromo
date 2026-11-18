@@ -14,6 +14,8 @@ function getConfig() {
           "./app/.server/**/*.{js,ts,jsx,tsx}",
         ],
         outputDir: "./app/types",
+        // Emit string unions, not `enum`: a .d.ts enum has no runtime value.
+        enumsAsConst: true,
       }),
     },
   };

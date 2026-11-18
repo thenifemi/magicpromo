@@ -1,10 +1,10 @@
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
 import { arrangePromotions } from "./display-order.server";
 import { storefrontOffers } from "./storefront.server";
-import type { Graphql } from "./collection.server";
 export async function publishedOffers(
   shop: string,
-  graphql: Graphql,
+  graphql: AdminGraphqlClient,
   ids: string[],
 ) {
   const drafts = await prisma.promotionDraft.findMany({

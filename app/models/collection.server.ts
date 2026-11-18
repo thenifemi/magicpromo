@@ -1,7 +1,4 @@
-export type Graphql = (
-  query: string,
-  options?: { variables: Record<string, unknown> },
-) => Promise<Response>;
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 export const COLLECTION = `#graphql
   query MagicpromoCollection($id: ID!) {
     collection(id: $id) { id title handle }
@@ -12,19 +9,14 @@ export const MEMBERSHIP = `#graphql
     nodes(ids: $ids) { ... on Product { id inCollection(id: $collectionId) } }
   }
 `;
-export async function getCollection(graphql: Graphql, id: string) {
+export async function getCollection(graphql: AdminGraphqlClient, id: string) {
   const response = await graphql(COLLECTION, { variables: { id } });
-  const result = await response.json();
-  if (!response.ok || result.errors?.length)
-    throw new Error("Could not load collection");
-  return result.data?.collection as {
-    id: string;
-    title: string;
-    handle: string;
-  } | null;
+  const { data } = await response.json();
+  if (!data) throw new Error("Could not load collection");
+  return data.collection ?? null;
 }
 export async function collectionProductIds(
-  graphql: Graphql,
+  graphql: AdminGraphqlClient,
   ids: string[],
   collectionId: string,
 ) {
@@ -32,10 +24,8 @@ export async function collectionProductIds(
   const response = await graphql(MEMBERSHIP, {
     variables: { ids, collectionId },
   });
-  const result = await response.json();
-  if (!response.ok || result.errors?.length || !result.data)
-    throw new Error("Could not verify collection membership");
-  return result.data.nodes
-    .filter((p: { inCollection?: boolean } | null) => p?.inCollection)
-    .map((p: { id: string }) => p.id) as string[];
+  const { data } = await response.json();
+  if (!data) throw new Error("Could not verify collection membership");
+  // nodes() returns null for deleted IDs.
+  return data.nodes.flatMap((node) => (node?.inCollection ? [node.id] : []));
 }

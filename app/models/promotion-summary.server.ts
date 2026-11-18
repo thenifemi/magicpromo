@@ -1,7 +1,4 @@
-type Graphql = (
-  query: string,
-  options?: { variables: Record<string, unknown> },
-) => Promise<Response>;
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 
 export const READ_SUMMARIES = `#graphql
   query MagicpromoSummaries($ids: [ID!]!) {
@@ -17,7 +14,7 @@ export const READ_SUMMARIES = `#graphql
 `;
 
 // Node results follow input order, including null for deleted discounts.
-export async function readDiscountSummaries(graphql: Graphql, ids: string[]) {
+export async function readDiscountSummaries(graphql: AdminGraphqlClient, ids: string[]) {
   const uniqueIds = [...new Set(ids)];
   const counts = new Map<string, { usageCount: number | null; status: string }>(
     uniqueIds.map((id) => [id, { usageCount: null, status: "UNKNOWN" }]),
@@ -28,19 +25,24 @@ export async function readDiscountSummaries(graphql: Graphql, ids: string[]) {
       const response = await graphql(READ_SUMMARIES, {
         variables: { ids: batch },
       });
-      const result = await response.json();
-      if (
-        !response.ok ||
-        result.errors?.length ||
-        !Array.isArray(result.data?.nodes)
-      )
-        continue;
+      const { data } = await response.json();
+      if (!data) continue;
       batch.forEach((id, index) => {
-        const node = result.data.nodes[index];
-        const discount = node?.automaticDiscount ?? node?.discount;
+        const node = data.nodes[index];
+        // Narrow the union: which alias exists depends on the node type.
+        const discount = !node
+          ? undefined
+          : "automaticDiscount" in node
+            ? node.automaticDiscount
+            : "discount" in node
+              ? node.discount
+              : undefined;
         const count = discount?.asyncUsageCount;
         counts.set(id, {
-          usageCount: Number.isInteger(count) && count >= 0 ? count : null,
+          usageCount:
+            typeof count === "number" && Number.isInteger(count) && count >= 0
+              ? count
+              : null,
           status: node === null ? "MISSING" : (discount?.status ?? "UNKNOWN"),
         });
       });

@@ -1,5 +1,7 @@
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 import { parseStorefrontSettings } from "../lib/storefront-settings";
-import { collectionProductIds, type Graphql } from "./collection.server";
+import { collectionProductIds } from "./collection.server";
+import { parsePromotionConfig } from "../../shared/promotion-config";
 export const STOREFRONT_DISCOUNTS = `#graphql
   query MagicpromoStorefront($ids: [ID!]!) {
     nodes(ids: $ids) {
@@ -23,7 +25,7 @@ export type PublicOffer = {
   settings: NonNullable<ReturnType<typeof parseStorefrontSettings>>;
 };
 export async function storefrontOffers(
-  graphql: Graphql,
+  graphql: AdminGraphqlClient,
   discountIds: string[],
   productIds: string[],
 ): Promise<PublicOffer[]> {
@@ -33,46 +35,26 @@ export async function storefrontOffers(
     const response = await graphql(STOREFRONT_DISCOUNTS, {
       variables: { ids },
     });
-    const result = await response.json();
-    if (!response.ok || result.errors?.length || !result.data)
-      throw new Error("Could not verify published offers");
-    for (const [index, node] of result.data.nodes.entries()) {
-      if ((node?.automaticDiscount ?? node?.discount)?.status !== "ACTIVE")
-        continue;
-      const config = node.metafield?.jsonValue;
-      const settings = parseStorefrontSettings(config?.storefront);
+    const { data } = await response.json();
+    if (!data) throw new Error("Could not verify published offers");
+    for (const [index, node] of data.nodes.entries()) {
+      if (!node || !("metafield" in node)) continue;
+      const discount =
+        "automaticDiscount" in node ? node.automaticDiscount : node.discount;
+      if (discount?.status !== "ACTIVE") continue;
+      const raw = node.metafield?.jsonValue;
+      const settings = parseStorefrontSettings(raw?.storefront);
+      const parsed = parsePromotionConfig(raw);
       if (
         !settings ||
         !(settings.announcement || settings.product || settings.cart) ||
-        config.version !== 1 ||
-        !Number.isInteger(config.discountPercent) ||
-        config.discountPercent < 1 ||
-        config.discountPercent > 100 ||
-        !Number.isInteger(config.minimumProducts) ||
-        config.minimumProducts < 1 ||
-        config.minimumProducts > 100 ||
-        !["distinct_products", "total_quantity"].includes(
-          config.qualificationMode,
-        )
+        !parsed.ok
       )
         continue;
-      let eligible: string[];
-      if (config.collectionIds !== undefined) {
-        if (
-          !Array.isArray(config.collectionIds) ||
-          config.collectionIds.length !== 1 ||
-          !/^gid:\/\/shopify\/Collection\/\d+$/.test(config.collectionIds[0])
-        )
-          continue;
-        eligible = await collectionProductIds(
-          graphql,
-          productIds,
-          config.collectionIds[0],
-        );
-      } else {
-        if (!Array.isArray(config.productIds)) continue;
-        eligible = productIds.filter((id) => config.productIds.includes(id));
-      }
+      const config = parsed.value;
+      const eligible = config.collectionIds
+        ? await collectionProductIds(graphql, productIds, config.collectionIds[0])
+        : productIds.filter((id) => config.productIds.includes(id));
       offers.push({
         id: ids[index],
         percent: config.discountPercent,

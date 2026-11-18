@@ -1,4 +1,4 @@
-import type { Graphql } from "./collection.server";
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 
 export const THEME_PLACEMENTS = `#graphql
   query MagicpromoThemePlacements($id: ID!, $after: String) {
@@ -103,25 +103,33 @@ export function detectPlacements(
   return result;
 }
 
-export async function themePlacements(graphql: Graphql, themeId: string) {
+async function fetchThemeFilesPage(
+  graphql: AdminGraphqlClient,
+  themeId: string,
+  after: string | null,
+) {
+  const response = await graphql(THEME_PLACEMENTS, {
+    variables: { id: `gid://shopify/OnlineStoreTheme/${themeId}`, after },
+  });
+  const { data } = await response.json();
+  const connection = data?.theme?.files;
+  const appHandle = data?.currentAppInstallation?.app?.handle;
+  if (!connection || !appHandle) throw new Error("Theme status unavailable");
+  return { connection, appHandle };
+}
+
+export async function themePlacements(graphql: AdminGraphqlClient, themeId: string) {
   if (!/^\d+$/.test(themeId)) throw new Error("Invalid theme");
   const files: ThemeFile[] = [];
   let after: string | null = null;
   let appHandle = "";
   do {
-    const response = await graphql(THEME_PLACEMENTS, {
-      variables: { id: `gid://shopify/OnlineStoreTheme/${themeId}`, after },
-    });
-    const body = await response.json();
-    const connection = body.data?.theme?.files;
-    appHandle = body.data?.currentAppInstallation?.app?.handle;
-    if (!response.ok || body.errors?.length || !connection || !appHandle)
-      throw new Error("Theme status unavailable");
-    files.push(...connection.nodes);
-    const next = connection.pageInfo.hasNextPage
-      ? connection.pageInfo.endCursor
-      : null;
-    if (connection.pageInfo.hasNextPage && (!next || next === after))
+    const page = await fetchThemeFilesPage(graphql, themeId, after);
+    appHandle = page.appHandle;
+    files.push(...page.connection.nodes);
+    const { hasNextPage, endCursor } = page.connection.pageInfo;
+    const next = hasNextPage ? endCursor ?? null : null;
+    if (hasNextPage && (!next || next === after))
       throw new Error("Incomplete theme status");
     after = next;
   } while (after);

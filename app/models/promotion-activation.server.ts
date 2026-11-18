@@ -1,13 +1,11 @@
+import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
 import { randomUUID, createHash } from "node:crypto";
 import prisma from "../db.server";
 import { getDraft } from "./promotion-draft.server";
 import { isDevelopmentApp } from "../lib/environment";
 import { parsePromotionConfig } from "../../shared/promotion-config";
+import type { DiscountAutomaticAppInput } from "../types/admin.types";
 
-type Graphql = (
-  query: string,
-  options?: { variables: Record<string, unknown> },
-) => Promise<Response>;
 export const CREATE_DISCOUNT = `#graphql
   mutation ActivateMagicpromo($input: DiscountAutomaticAppInput!) {
     discountAutomaticAppCreate(automaticAppDiscount: $input) {
@@ -75,19 +73,46 @@ export function draftFingerprint(draft: SavedDraft) {
     .digest("hex");
 }
 
-export async function readDiscount(graphql: Graphql, id: string) {
+type DiscountSnapshot = {
+  metafield: { id: string } | null;
+  automaticDiscount: { status?: string; asyncUsageCount?: number };
+};
+
+export async function readDiscount(
+  graphql: AdminGraphqlClient,
+  id: string,
+): Promise<DiscountSnapshot | null> {
   const response = await graphql(READ_DISCOUNT, { variables: { id } });
-  const result = await response.json();
-  if (!response.ok || result.errors?.length || !result.data)
-    throw new Error("Unable to read Shopify discount");
-  return result.data.automaticDiscountNode as null | {
-    metafield: null | { id: string };
-    automaticDiscount: { status?: string; asyncUsageCount?: number };
+  const { data } = await response.json();
+  if (!data) throw new Error("Unable to read Shopify discount");
+  const node = data.automaticDiscountNode;
+  if (!node) return null;
+  // Only DiscountAutomaticApp has these fields; other discount types come back as {}.
+  const discount = node.automaticDiscount;
+  return {
+    metafield: node.metafield ?? null,
+    automaticDiscount: "status" in discount ? discount : {},
   };
 }
 
+/** Create and update are separate mutations with different payload keys. */
+async function saveAutomaticDiscount(
+  graphql: AdminGraphqlClient,
+  input: DiscountAutomaticAppInput,
+  existingId: string | null,
+) {
+  if (existingId) {
+    const response = await graphql(UPDATE_DISCOUNT, {
+      variables: { id: existingId, input },
+    });
+    return (await response.json()).data?.discountAutomaticAppUpdate;
+  }
+  const response = await graphql(CREATE_DISCOUNT, { variables: { input } });
+  return (await response.json()).data?.discountAutomaticAppCreate;
+}
+
 export async function activatePromotion(
-  graphql: Graphql,
+  graphql: AdminGraphqlClient,
   shop: string,
   id: string,
   expectedVersion: string,
@@ -124,12 +149,11 @@ export async function activatePromotion(
     const response = await graphql(CHECK_ACCESS, {
       variables: { ids: draft.collectionId ? [draft.collectionId] : config.productIds },
     });
-    const result = await response.json();
-    if (!response.ok || result.errors?.length || !result.data)
-      throw new Error("Preflight failed");
+    const { data } = await response.json();
+    if (!data) throw new Error("Preflight failed");
     if (
-      !result.data.currentAppInstallation.accessScopes.some(
-        (scope: { handle: string }) => scope.handle === "write_discounts",
+      !data.currentAppInstallation.accessScopes.some(
+        (scope) => scope.handle === "write_discounts",
       )
     ) {
       return {
@@ -137,7 +161,7 @@ export async function activatePromotion(
       };
     }
     const existing = new Set(
-      result.data.nodes.map((node: { id?: string } | null) => node?.id),
+      data.nodes.map((node) => (node && "id" in node ? node.id : undefined)),
     );
     if ((draft.collectionId ? [draft.collectionId] : config.productIds).some((id) => !existing.has(id)))
       return {
@@ -172,7 +196,7 @@ export async function activatePromotion(
         "This promotion changed or is already being activated. Refresh before continuing.",
     };
 
-  const input = {
+  const input: DiscountAutomaticAppInput = {
     title: isDevelopmentApp(process.env.SHOPIFY_API_KEY) && !draft.name.startsWith("[DEV] ")
       ? `[DEV] ${draft.name}`
       : draft.name,
@@ -194,33 +218,20 @@ export async function activatePromotion(
     ],
   };
   try {
-    const response = await graphql(
-      draft.shopifyDiscountId ? UPDATE_DISCOUNT : CREATE_DISCOUNT,
-      {
-        variables: {
-          input,
-          ...(draft.shopifyDiscountId ? { id: draft.shopifyDiscountId } : {}),
-        },
-      },
+    // Network and GraphQL errors throw and land in the catch below.
+    const payload = await saveAutomaticDiscount(
+      graphql,
+      input,
+      draft.shopifyDiscountId,
     );
-    const result = await response.json();
-    const payload =
-      result.data?.[
-        draft.shopifyDiscountId
-          ? "discountAutomaticAppUpdate"
-          : "discountAutomaticAppCreate"
-      ];
-    if (!response.ok || result.errors?.length || !payload)
-      throw new Error("Uncertain Shopify response");
+    if (!payload) throw new Error("Uncertain Shopify response");
     if (payload.userErrors?.length && !payload.automaticAppDiscount) {
       await prisma.promotionDraft.updateMany({
         where: { id, shop, activationToken: token },
         data: { activationToken: null },
       });
       return {
-        error: payload.userErrors
-          .map((error: { message: string }) => error.message)
-          .join(" "),
+        error: payload.userErrors.map((error) => error.message).join(" "),
       };
     }
     const discountId = payload.automaticAppDiscount?.discountId;
@@ -264,7 +275,7 @@ export const DEACTIVATE_DISCOUNT = `#graphql
 `;
 
 export async function deactivatePromotion(
-  graphql: Graphql,
+  graphql: AdminGraphqlClient,
   shop: string,
   id: string,
   expectedVersion: string,
@@ -294,19 +305,15 @@ export async function deactivatePromotion(
     const response = await graphql(DEACTIVATE_DISCOUNT, {
       variables: { id: draft.shopifyDiscountId },
     });
-    const result = await response.json();
-    const payload = result.data?.discountAutomaticDeactivate;
-    if (!response.ok || result.errors?.length || !payload)
-      throw new Error("Uncertain Shopify response");
+    const payload = (await response.json()).data?.discountAutomaticDeactivate;
+    if (!payload) throw new Error("Uncertain Shopify response");
     if (payload.userErrors?.length && !payload.automaticDiscountNode) {
       await prisma.promotionDraft.updateMany({
         where: { id, shop, activationToken: token },
         data: { activationToken: null },
       });
       return {
-        error: payload.userErrors
-          .map((error: { message: string }) => error.message)
-          .join(" "),
+        error: payload.userErrors.map((error) => error.message).join(" "),
       };
     }
     if (

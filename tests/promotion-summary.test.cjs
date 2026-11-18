@@ -26,7 +26,8 @@ test('network, HTTP and GraphQL failures remain unavailable', async () => {
   for (const graphql of [
     async () => { throw new Error('offline'); },
     async () => Response.json({}, { status: 500 }),
-    async () => Response.json({ errors: [{ message: 'denied' }], data: { nodes: [{ discount: { asyncUsageCount: 2 } }] } }),
+    // The real admin client throws GraphqlQueryError instead of returning `errors`.
+    async () => { throw Object.assign(new Error('denied'), { name: 'GraphqlQueryError' }); },
   ]) {
     assert.deepEqual((await readDiscountSummaries(graphql, ['a'])).get('a'), { usageCount: null, status: 'UNKNOWN' });
   }

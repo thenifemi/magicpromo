@@ -36,16 +36,12 @@ export default function App() {
         <footer className={styles.banner} aria-label="App environment">
           <s-box
             background="base"
-            borderStyle="solid none none none"
+            borderStyle="solid solid none none"
             border="base"
+            borderRadius="none base none none"
             padding="small-200"
           >
-            <s-stack
-              direction="inline"
-              gap="small-200"
-              alignItems="center"
-              justifyContent="center"
-            >
+            <s-stack direction="inline" gap="small-200" alignItems="center">
               <s-badge tone="warning">Magicpromo Dev</s-badge>
               <s-text color="subdued">Development environment</s-text>
             </s-stack>

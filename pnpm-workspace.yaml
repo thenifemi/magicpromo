@@ -9,3 +9,5 @@ allowBuilds:
   prisma: true
   unrs-resolver: true
   core-js: false
+overrides:
+  qs: ^6.16.0

@@ -143,6 +143,15 @@ export default function Storefront() {
     if (template) url.searchParams.set("template", template);
     return url.toString();
   }
+  /** The "Add" deep link, reusing an empty Apps section when the theme has one. */
+  function addLink(placement: keyof ThemePlacements) {
+    const href = theme?.links?.[placement];
+    const sectionId = status?.placements?.[placement].emptyAppsSectionId;
+    if (!href || !sectionId) return href;
+    const url = new URL(href);
+    url.searchParams.set("target", `sectionId:${sectionId}`);
+    return url.toString();
+  }
   const steps = [
     {
       title: "Announcement bar",
@@ -300,11 +309,22 @@ export default function Storefront() {
                   </div>
                   <s-button
                     variant={index === 0 && missing ? "primary" : "secondary"}
-                    href={missing ? step.href : manageLink(step.placement)}
+                    href={
+                      missing
+                        ? addLink(step.placement)
+                        : // A disabled embed needs activateAppId, which manageLink strips.
+                          disabled && step.placement === "announcement"
+                          ? step.href
+                          : manageLink(step.placement)
+                    }
                     target="_blank"
                     {...(!step.href ? { disabled: true } : {})}
                   >
-                    {missing ? step.label : "Manage placement"}
+                    {missing
+                      ? step.label
+                      : disabled && step.placement === "announcement"
+                        ? "Turn on announcement bar"
+                        : "Manage placement"}
                   </s-button>
                 </div>
               </s-section>
@@ -314,6 +334,9 @@ export default function Storefront() {
         <s-paragraph color="subdued">
           Added placements appear when an active promotion has messaging
           enabled. Product banners may be added to specific product templates.
+          Shopify adds a new product banner at the end of the product
+          information section; drag it above the buy buttons so shoppers see
+          it while deciding.
         </s-paragraph>
         <s-section heading="Display order">
           <s-stack gap="base">

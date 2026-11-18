@@ -11,7 +11,8 @@ export const defaultStorefrontSettings: StorefrontSettings = {
   destination: "/collections/all",
   background: "#251510",
   foreground: "#fff8ed",
-  position: "bottom",
+  // Top: the bottom edge is crowded by chat widgets, popups and Sidekick.
+  position: "top",
   priority: 0,
 };
 export function parseStorefrontSettings(

@@ -14,6 +14,11 @@ export const THEME_PLACEMENTS = `#graphql
 export type PlacementStatus = {
   state: "added" | "disabled" | "missing" | "unknown";
   template?: string;
+  /**
+   * An empty Apps section already in the template. Deep links target it with
+   * `sectionId:<id>`, so "Add" doesn't stack up new Apps sections each click.
+   */
+  emptyAppsSectionId?: string;
 };
 export type ThemePlacements = Record<
   "announcement" | "product" | "cart",
@@ -32,6 +37,7 @@ export function detectPlacements(
   };
   const malformed = new Set<keyof ThemePlacements>();
   let settingsFound = false;
+  let emptyCartAppsSection: string | undefined;
   for (const file of files) {
     const match = /^templates\/(product|cart)(?:\.[^/]+)?\.json$/.exec(
       file.filename,
@@ -91,12 +97,25 @@ export function detectPlacements(
         placement !== "announcement" && Array.isArray(parsed.order)
           ? parsed.order
           : Object.keys(root);
-      for (const id of ids) visit(root[id]);
+      for (const id of ids) {
+        const section = root[id] as Record<string, unknown> | undefined;
+        if (
+          file.filename === "templates/cart.json" &&
+          section?.type === "apps" &&
+          section.disabled !== true &&
+          !emptyCartAppsSection &&
+          Object.keys((section.blocks as object | undefined) ?? {}).length === 0
+        )
+          emptyCartAppsSection = id;
+        visit(section);
+      }
     } catch {
       malformed.add(placement);
     }
   }
   if (!settingsFound) malformed.add("announcement");
+  if (result.cart.state === "missing" && emptyCartAppsSection)
+    result.cart.emptyAppsSectionId = emptyCartAppsSection;
   for (const placement of malformed)
     if (result[placement].state !== "added")
       result[placement] = { state: "unknown" };

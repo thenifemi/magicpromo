@@ -55,3 +55,13 @@ test('API failures and missing app identity never become missing placements', as
   await assert.rejects(themePlacements(async()=>Response.json({data:{theme:{files:{nodes:[]}}}}),'123'));
   await assert.rejects(themePlacements(async()=>{throw new Error('must not call');},'../123'));
 });
+
+test('an empty Apps section in the cart template is offered for reuse', () => {
+  const cart = (sections, order) => file('templates/cart.json', { sections, order });
+  const empty = detectPlacements([settings(), cart({ main: { type: 'main-cart' }, leftover: { type: 'apps', blocks: {} } }, ['main', 'leftover'])], 'magicpromo-dev');
+  assert.deepEqual(empty.cart, { state: 'missing', emptyAppsSectionId: 'leftover' });
+  const occupied = detectPlacements([settings(), cart({ other: { type: 'apps', blocks: { x: block('other-app') } } }, ['other'])], 'magicpromo-dev');
+  assert.equal(occupied.cart.emptyAppsSectionId, undefined);
+  const added = detectPlacements([settings(), cart({ ours: { type: 'apps', blocks: { a: block() } }, spare: { type: 'apps' } }, ['ours', 'spare'])], 'magicpromo-dev');
+  assert.deepEqual(added.cart, { state: 'added', template: 'cart' });
+});

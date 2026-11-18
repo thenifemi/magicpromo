@@ -3,7 +3,11 @@ import { useEffect, useRef } from "react";
 export default function QualificationChoice({
   value,
   onChange,
+  label = "How the cart qualifies",
+  options = [{ value: "distinct_products", label: "Number of different products" }, { value: "total_quantity", label: "Total quantity of eligible items" }],
 }: {
+  label?: string;
+  options?: { value: string; label: string }[];
   value: string;
   onChange: (value: string) => void;
 }) {
@@ -25,13 +29,8 @@ export default function QualificationChoice({
     };
   }, [value, onChange]);
   return (
-    <s-choice-list ref={ref} label="How the cart qualifies">
-      <s-choice value="distinct_products">
-        Number of different products
-      </s-choice>
-      <s-choice value="total_quantity">
-        Total quantity of eligible items
-      </s-choice>
+    <s-choice-list ref={ref} label={label}>
+      {options.map((option) => <s-choice key={option.value} value={option.value}>{option.label}</s-choice>)}
     </s-choice-list>
   );
 }

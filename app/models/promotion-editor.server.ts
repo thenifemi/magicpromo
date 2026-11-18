@@ -1,3 +1,4 @@
+import { getCollection, collectionProductIds } from "./collection.server";
 import { data, redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 import type { ProductSummary } from "../components/ProductPicker";
@@ -52,18 +53,22 @@ export async function loadEditor(request: Request, id: string | null) {
   }
 
   let discountStatus: string | null = null;
+  let usageCount: number | null = draft?.shopifyDiscountId || draft?.activationToken ? null : 0;
   if (draft?.shopifyDiscountId) {
     try {
       const remote = await readDiscount(admin.graphql, draft.shopifyDiscountId);
       discountStatus = remote?.automaticDiscount.status ?? "MISSING";
+      usageCount = remote?.automaticDiscount.asyncUsageCount ?? null;
     } catch {
       discountStatus = "UNKNOWN";
     }
   }
   return {
     products: result.data.products.nodes,
+    collectionProductIds: draft?.collectionId ? await collectionProductIds(admin.graphql, result.data.products.nodes.map((p) => p.id), draft.collectionId) : [],
     draft,
     discountStatus,
+    usageCount,
     needsSync:
       !!draft?.shopifyDiscountId &&
       draft.publishedFingerprint !== draftFingerprint(draft),
@@ -137,7 +142,16 @@ export const savePromotion = async (request: Request, id: string | null) => {
       },
       { status: 400 },
     );
-  const productIds = [...new Set(form.getAll("productId").map(String))];
+  const collectionId = String(form.get("collectionId") ?? "") || null;
+  if (collectionId && !/^gid:\/\/shopify\/Collection\/\d+$/.test(collectionId))
+    return data({ error: "Choose a valid collection." }, { status: 400 });
+  let collection = null;
+  if (collectionId) {
+    try { collection = await getCollection(admin.graphql, collectionId); }
+    catch { return data({ error: "Could not verify the collection. Try again." }, { status: 502 }); }
+    if (!collection) return data({ error: "This collection no longer exists." }, { status: 400 });
+  }
+  const productIds = collectionId ? [] : [...new Set(form.getAll("productId").map(String))];
   if (!name || name.length > 100) {
     return data(
       { error: "Enter a promotion name between 1 and 100 characters." },
@@ -145,7 +159,7 @@ export const savePromotion = async (request: Request, id: string | null) => {
     );
   }
   if (
-    !productIds.length ||
+    (!collectionId && !productIds.length) ||
     productIds.length > 100 ||
     productIds.some((id) => !/^gid:\/\/shopify\/Product\/\d+$/.test(id))
   ) {
@@ -191,6 +205,8 @@ export const savePromotion = async (request: Request, id: string | null) => {
       id,
       name,
       productIds,
+      collectionId,
+      collectionTitle: collection?.title ?? null,
       discountPercent,
       minimumProducts,
       qualificationMode,

@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import prisma from "../db.server";
 import { getDraft } from "./promotion-draft.server";
+import { isDevelopmentApp } from "../lib/environment";
 
 type Graphql = (
   query: string,
@@ -26,14 +27,14 @@ export const READ_DISCOUNT = `#graphql
   query MagicpromoDiscount($id: ID!) {
     automaticDiscountNode: discountNode(id: $id) {
       metafield(namespace: "$app:magicpromo", key: "configuration") { id }
-      automaticDiscount: discount { ... on DiscountAutomaticApp { status } }
+      automaticDiscount: discount { ... on DiscountAutomaticApp { status asyncUsageCount } }
     }
   }
 `;
 export const CHECK_ACCESS = `#graphql
   query MagicpromoActivationAccess($ids: [ID!]!) {
     currentAppInstallation { accessScopes { handle } }
-    nodes(ids: $ids) { ... on Product { id } }
+    nodes(ids: $ids) { ... on Product { id } ... on Collection { id } }
   }
 `;
 
@@ -42,6 +43,9 @@ export function configuration(draft: SavedDraft) {
   return {
     version: 1,
     productIds: draft.products.map((p) => p.productId).sort(),
+    ...(draft.collectionId ? { collectionIds: [draft.collectionId] } : {}),
+    ...(draft.storefrontSettings && draft.storefrontSettings !== "{}"
+      ? { storefront: JSON.parse(draft.storefrontSettings) } : {}),
     discountPercent: draft.discountPercent,
     minimumProducts: draft.minimumProducts,
     qualificationMode: draft.qualificationMode,
@@ -77,7 +81,7 @@ export async function readDiscount(graphql: Graphql, id: string) {
     throw new Error("Unable to read Shopify discount");
   return result.data.automaticDiscountNode as null | {
     metafield: null | { id: string };
-    automaticDiscount: { status?: string };
+    automaticDiscount: { status?: string; asyncUsageCount?: number };
   };
 }
 
@@ -102,7 +106,8 @@ export async function activatePromotion(
   const config = configuration(draft);
   if (
     !draft.name.trim() ||
-    !config.productIds.length ||
+    (!draft.collectionId && !config.productIds.length) ||
+    (draft.collectionId !== null && !/^gid:\/\/shopify\/Collection\/\d+$/.test(draft.collectionId)) ||
     config.productIds.length > 100 ||
     config.productIds.some(
       (id) => !/^gid:\/\/shopify\/Product\/\d+$/.test(id),
@@ -116,7 +121,7 @@ export async function activatePromotion(
     !["distinct_products", "total_quantity"].includes(
       config.qualificationMode,
     ) ||
-    (config.qualificationMode === "distinct_products" &&
+    (!draft.collectionId && config.qualificationMode === "distinct_products" &&
       new Set(config.productIds).size < config.minimumProducts)
   ) {
     return {
@@ -128,7 +133,7 @@ export async function activatePromotion(
   let metafieldId: string | undefined;
   try {
     const response = await graphql(CHECK_ACCESS, {
-      variables: { ids: config.productIds },
+      variables: { ids: draft.collectionId ? [draft.collectionId] : config.productIds },
     });
     const result = await response.json();
     if (!response.ok || result.errors?.length || !result.data)
@@ -145,10 +150,10 @@ export async function activatePromotion(
     const existing = new Set(
       result.data.nodes.map((node: { id?: string } | null) => node?.id),
     );
-    if (config.productIds.some((id) => !existing.has(id)))
+    if ((draft.collectionId ? [draft.collectionId] : config.productIds).some((id) => !existing.has(id)))
       return {
         error:
-          "Some selected products no longer exist. Update the draft before activating.",
+          "Some selected products or collections no longer exist. Update the draft before activating.",
       };
     if (draft.shopifyDiscountId) {
       const remote = await readDiscount(graphql, draft.shopifyDiscountId);
@@ -179,7 +184,9 @@ export async function activatePromotion(
     };
 
   const input = {
-    title: draft.name,
+    title: isDevelopmentApp(process.env.SHOPIFY_API_KEY) && !draft.name.startsWith("[DEV] ")
+      ? `[DEV] ${draft.name}`
+      : draft.name,
     ...(!draft.shopifyDiscountId
       ? { functionHandle: "magicpromo-discount" }
       : {}),
@@ -260,7 +267,7 @@ export const DEACTIVATE_DISCOUNT = `#graphql
     discountAutomaticDeactivate(id: $id) {
       automaticDiscountNode {
         id
-        automaticDiscount { ... on DiscountAutomaticApp { status } }
+        automaticDiscount { ... on DiscountAutomaticApp { status asyncUsageCount } }
       }
       userErrors { field message }
     }

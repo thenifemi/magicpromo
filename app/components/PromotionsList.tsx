@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 type PromotionListItem = {
   id: string;
+  collectionTitle?: string | null;
+  usageCount: number | null;
+  discountStatus: string | null;
   shopifyDiscountId?: string | null;
   activationToken?: string | null;
   name: string;
@@ -87,7 +90,10 @@ export default function PromotionsList({
                 <s-table-header listSlot="secondary">Status</s-table-header>
                 <s-table-header listSlot="labeled">Discount</s-table-header>
                 <s-table-header listSlot="labeled" format="numeric">
-                  Products
+                  Eligibility
+                </s-table-header>
+                <s-table-header listSlot="labeled" format="numeric">
+                  Uses
                 </s-table-header>
                 <s-table-header listSlot="labeled">Last updated</s-table-header>
               </s-table-header-row>
@@ -106,29 +112,59 @@ export default function PromotionsList({
                       </s-link>
                     </s-table-cell>
                     <s-table-cell>
-                      <s-badge>
-                        <s-stack
-                          direction="inline"
-                          gap="small-200"
-                          alignItems="center"
-                        >
-                          {!p.activationToken && p.shopifyDiscountId && (
-                            <s-box inlineSize="16px">
-                              <s-image
-                                src="https://cdn.shopify.com/shopifycloud/brochure/assets/brand-assets/shopify-logo-shopping-bag-full-color-66166b2e55d67988b56b4bd28b63c271e2b9713358cb723070a92bde17ad7d63.svg"
-                                alt=""
-                                aspectRatio="1"
-                                objectFit="contain"
-                              />
-                            </s-box>
-                          )}
-                          {p.activationToken
-                            ? "Needs review"
-                            : p.shopifyDiscountId
-                              ? "Linked to Shopify"
-                              : "Draft"}
-                        </s-stack>
-                      </s-badge>
+                      <s-stack
+                        direction="inline"
+                        gap="small"
+                        alignItems="center"
+                      >
+                        {p.shopifyDiscountId && (
+                          <s-badge
+                            tone={
+                              p.discountStatus === "ACTIVE"
+                                ? "success"
+                                : p.discountStatus === "SCHEDULED"
+                                  ? "info"
+                                  : p.discountStatus === "UNKNOWN" ||
+                                      p.discountStatus === "MISSING"
+                                    ? "caution"
+                                    : "neutral"
+                            }
+                          >
+                            {p.discountStatus === "ACTIVE"
+                              ? "Active"
+                              : p.discountStatus === "EXPIRED"
+                                ? "Deactivated"
+                                : p.discountStatus === "SCHEDULED"
+                                  ? "Scheduled"
+                                  : p.discountStatus === "MISSING"
+                                    ? "Removed from Shopify"
+                                    : "Status unavailable"}
+                          </s-badge>
+                        )}
+                        <s-badge>
+                          <s-stack
+                            direction="inline"
+                            gap="small-200"
+                            alignItems="center"
+                          >
+                            {!p.activationToken && p.shopifyDiscountId && (
+                              <s-box inlineSize="16px">
+                                <s-image
+                                  src="https://cdn.shopify.com/shopifycloud/brochure/assets/brand-assets/shopify-logo-shopping-bag-full-color-66166b2e55d67988b56b4bd28b63c271e2b9713358cb723070a92bde17ad7d63.svg"
+                                  alt=""
+                                  aspectRatio="1"
+                                  objectFit="contain"
+                                />
+                              </s-box>
+                            )}
+                            {p.activationToken
+                              ? "Needs review"
+                              : p.shopifyDiscountId
+                                ? "Linked to Shopify"
+                                : "Draft"}
+                          </s-stack>
+                        </s-badge>
+                      </s-stack>
                     </s-table-cell>
                     <s-table-cell>
                       {p.discountPercent}% off · {p.minimumProducts}+{" "}
@@ -136,7 +172,12 @@ export default function PromotionsList({
                         ? "eligible items"
                         : "different products"}
                     </s-table-cell>
-                    <s-table-cell>{p._count.products}</s-table-cell>
+                    <s-table-cell>{p.collectionTitle || `${p._count.products} products`}</s-table-cell>
+                    <s-table-cell>
+                      {p.usageCount === null
+                        ? "Unavailable"
+                        : p.usageCount.toLocaleString("en")}
+                    </s-table-cell>
                     <s-table-cell>
                       {new Intl.DateTimeFormat("en", {
                         dateStyle: "medium",
@@ -152,8 +193,9 @@ export default function PromotionsList({
           )}
           <s-box padding="base">
             <s-paragraph color="subdued">
-              Drafts are not active at checkout. Open a linked promotion to
-              check its current Shopify status.
+              Status is checked with Shopify when this list loads. Drafts are
+              not active at checkout. Usage counts come from Shopify and may
+              take time to update after an order.
             </s-paragraph>
           </s-box>
         </s-section>

@@ -297,3 +297,44 @@ test("default combination settings preserve existing published fingerprints", as
   })).digest("hex");
   assert.equal(draftFingerprint(d), original);
 });
+
+test("Dev app prefixes Shopify titles on create and update without renaming the draft", async () => {
+  const original = process.env.SHOPIFY_API_KEY;
+  try {
+    process.env.SHOPIFY_API_KEY = '9e6dabfa2ea6894ed70bd75ae6cf22b2';
+    const d = await draft();
+    const g = gateway();
+    assert.deepEqual(await activate(g, d), { success: true });
+    assert.equal(g.calls.at(-1).variables.input.title, '[DEV] Explorer');
+    const saved = await db.promotionDraft.findUnique({ where: { id: d.id } });
+    assert.equal(saved.name, 'Explorer');
+    assert.deepEqual(await activate(g, saved), { success: true });
+    assert.equal(g.calls.at(-1).variables.input.title, '[DEV] Explorer');
+    process.env.SHOPIFY_API_KEY = 'e306339e4e0012ba5f3d1a42607324d4';
+    const latest = await db.promotionDraft.findUnique({ where: { id: d.id } });
+    assert.deepEqual(await activate(g, latest), { success: true });
+    assert.equal(g.calls.at(-1).variables.input.title, 'Explorer');
+  } finally {
+    if (original === undefined) delete process.env.SHOPIFY_API_KEY;
+    else process.env.SHOPIFY_API_KEY = original;
+  }
+});
+
+test("collection eligibility publishes the collection ID rather than a product snapshot", async () => {
+  const collectionId = "gid://shopify/Collection/9";
+  const d = await draft({ collectionId, collectionTitle: "Dark Side", minimumProducts: 2, qualificationMode: "total_quantity" });
+  let input;
+  const result = await activatePromotion(async (query, options) => {
+    if (query.includes("MagicpromoActivationAccess")) return Response.json({ data: { currentAppInstallation: { accessScopes: [{ handle: "write_discounts" }] }, nodes: [{ id: collectionId }] } });
+    input = options.variables.input;
+    return Response.json({ data: { discountAutomaticAppCreate: { automaticAppDiscount: { discountId: "gid://shopify/DiscountAutomaticNode/9" }, userErrors: [] } } });
+  }, d.shop, d.id, d.updatedAt.toISOString());
+  assert.equal(result.success, true);
+  assert.deepEqual(JSON.parse(input.metafields[0].value).collectionIds, [collectionId]);
+});
+test("messaging changes affect publishing fingerprint and publish with saved rules", async () => {
+  const d = await draft();
+  const original = await db.promotionDraft.findUnique({ where: { id: d.id }, include: { products: true } });
+  const changed = { ...original, storefrontSettings: JSON.stringify({ announcement: true }) };
+  assert.notEqual(draftFingerprint(original), draftFingerprint(changed));
+});

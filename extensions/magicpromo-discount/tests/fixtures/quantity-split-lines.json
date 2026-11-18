@@ -11,7 +11,8 @@
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
-                "id": "gid://shopify/Product/1"
+                "id": "gid://shopify/Product/1",
+                "inAnyCollection": false
               }
             }
           },
@@ -21,7 +22,8 @@
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
-                "id": "gid://shopify/Product/1"
+                "id": "gid://shopify/Product/1",
+                "inAnyCollection": false
               }
             }
           }

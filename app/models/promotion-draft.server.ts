@@ -20,6 +20,8 @@ export async function saveDraft(input: {
   id: string | null;
   name: string;
   productIds: string[];
+  collectionId?: string | null;
+  collectionTitle?: string | null;
   combineProductDiscounts: boolean;
   combineOrderDiscounts: boolean;
   combineShippingDiscounts: boolean;
@@ -31,6 +33,8 @@ export async function saveDraft(input: {
   return prisma.$transaction(async (tx) => {
     const data = {
       name: input.name,
+      collectionId: input.collectionId ?? null,
+      collectionTitle: input.collectionTitle ?? null,
       combineProductDiscounts: input.combineProductDiscounts,
       combineOrderDiscounts: input.combineOrderDiscounts,
       combineShippingDiscounts: input.combineShippingDiscounts,

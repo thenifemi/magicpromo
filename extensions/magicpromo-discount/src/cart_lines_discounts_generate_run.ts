@@ -8,6 +8,7 @@ import {
 type Configuration = {
   version: 1;
   productIds: string[];
+  collectionIds?: string[];
   discountPercent: number;
   minimumProducts: number;
   qualificationMode: "distinct_products" | "total_quantity";
@@ -20,7 +21,8 @@ function readConfiguration(value: unknown): Configuration | null {
   if (
     config.version !== 1 ||
     !Array.isArray(config.productIds) ||
-    config.productIds.length < 1 ||
+    (config.productIds.length < 1 && (!Array.isArray(config.collectionIds) || !config.collectionIds.length)) ||
+    (config.collectionIds !== undefined && (!Array.isArray(config.collectionIds) || config.collectionIds.length !== 1 || !config.collectionIds.every((id) => typeof id === "string" && /^gid:\/\/shopify\/Collection\/\d+$/.test(id)))) ||
     config.productIds.length > 100 ||
     !config.productIds.every(
       (id) =>
@@ -59,7 +61,10 @@ export function cartLinesDiscountsGenerateRun(
   for (const line of input.cart.lines) {
     if (line.merchandise.__typename !== "ProductVariant") continue;
     const productId = line.merchandise.product.id;
-    if (!selectedProducts.has(productId)) continue;
+    const eligible = config.collectionIds?.length
+      ? line.merchandise.product.inAnyCollection === true
+      : selectedProducts.has(productId);
+    if (!eligible) continue;
     if (!Number.isSafeInteger(line.quantity) || line.quantity < 1)
       return noDiscount;
 

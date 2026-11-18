@@ -12,13 +12,15 @@ export const loader = ({ request, params }: LoaderFunctionArgs) =>
 export const action = ({ request, params }: ActionFunctionArgs) =>
   savePromotion(request, params.id!);
 export default function Page() {
-  const { products, draft, discountStatus, needsSync } =
+  const { products, draft, discountStatus, needsSync, usageCount, collectionProductIds } =
     useLoaderData<typeof loader>();
   return (
     <PromotionEditorPage
       key={draft ? `${draft.id}:${draft.updatedAt}` : "new"}
       products={products}
+      collectionProductIds={collectionProductIds}
       discountStatus={discountStatus}
+      usageCount={usageCount}
       needsSync={needsSync}
       draft={
         draft

@@ -17,15 +17,15 @@ MAGICPROMO_API_KEY=your-key
 
 Never put the key in a `PUBLIC_` variable, browser bundle, Git, or loader response. Magicpromo stores only its hash. Replace or revoke it from the Hydrogen page; replacing immediately invalidates the old key. Uninstalling the app revokes its keys.
 
-## 2. Copy the components
+## 2. Use the SDK
 
-Copy the three source files from `integrations/hydrogen` into your project:
+Import from `@magicpromo/sdk` (source in `packages/sdk`):
 
-- `magicpromo.server.ts`: authenticated server fetch, three-second timeout, no cache, no redirects.
-- `types.ts`: offer selection and cart progress.
-- `MagicpromoBanners.tsx`: announcement, product, and cart components.
+- `@magicpromo/sdk/server`: `getMagicpromoOffers()`, an authenticated server fetch with a three-second timeout, no cache and no redirects. Server-only.
+- `@magicpromo/sdk`: the `Offer` type plus `selectOffer()`, `cartProgress()` and `offerMessage()`. Use these to render your own elements.
+- `@magicpromo/sdk/react`: ready-made announcement, product and cart banners.
 
-These are editable source files, not a published npm package. The sibling `timis-chocolates-hydrogen` project includes a working integration pattern with a server resource route and `useOffers` hook.
+The same core powers the Liquid theme extension, so selection and progress rules match on every storefront. The sibling `timis-chocolates-hydrogen` project includes a working integration pattern with a server resource route and `useOffers` hook.
 
 The resource route uses its own configured credential. It must never accept an upstream URL, API key, or shop from the browser. Return only public offer data, with `Cache-Control: no-store`. Hide banners on failures without interrupting shopping.
 
@@ -51,7 +51,7 @@ Header: `Authorization: Bearer <key>`.
 
 Accepts up to 100 numeric product IDs or `gid://shopify/Product/...` IDs. For collection promotions, send all relevant cart products and the current product so current collection membership can be checked. Omit products for an announcement-only request. Requests above the limit are rejected; the example hides banners instead of calculating partial progress.
 
-Success: `{ "version": 1, "offers": [...] }`. Each offer contains `id`, `percent`, `minimum`, `mode`, `eligibleProductIds`, and `settings`; see `integrations/hydrogen/types.ts` for the complete type. Offers contain only active, published messaging. Drafts, credentials, customer data, and Admin API tokens are excluded.
+Success: `{ "version": 1, "offers": [...] }`. Each offer contains `id`, `percent`, `minimum`, `mode`, `eligibleProductIds`, and `settings`; see `Offer` in `packages/sdk/src/core.ts` for the complete type. Offers contain only active, published messaging. Drafts, credentials, customer data, and Admin API tokens are excluded.
 
 Errors: `400` invalid product IDs; `401` missing/invalid/revoked/wrong-app key; `503` offer verification unavailable. No CORS is required for server-to-server requests. Do not cache active-offer responses indefinitely.
 

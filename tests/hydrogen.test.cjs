@@ -38,18 +38,18 @@ test('rotation invalidates old key atomically and cannot rotate another shop key
  assert.ok(await keys.authenticateHydrogenKey('Bearer '+next,'dev'));
 });
 test('cart chooses relevant offers while respecting display order and distinct products',()=>{
- const {selectOffer,cartProgress}=load('integrations/hydrogen/types.ts');
+ const {selectOffer,cartProgress}=load('packages/sdk/src/core.ts');
  const a={id:'a',minimum:3,mode:'distinct_products',eligibleProductIds:['1'],settings:{cart:true,product:true,announcement:true}};
  const b={...a,id:'b',eligibleProductIds:['2']};
  const items=[{productId:'gid://shopify/Product/2',quantity:4},{productId:'2',quantity:1}];
- assert.equal(selectOffer([a,b],'cart',items).id,'b');
+ assert.equal(selectOffer([a,b],'cart',{items}).id,'b');
  assert.equal(selectOffer([a,b],'announcement').id,'a');
- assert.equal(selectOffer([a,b],'product',[],'3'),undefined);
+ assert.equal(selectOffer([a,b],'product',{productId:'3'}),undefined);
  assert.deepEqual(cartProgress(b,items),{count:1,remaining:2,qualified:false});
  assert.deepEqual(cartProgress({...b,mode:'quantity'},items),{count:5,remaining:0,qualified:true});
 });
 test('server helper sends credentials only to configured endpoint and rejects redirects/errors',async()=>{
- const {getMagicpromoOffers}=load('integrations/hydrogen/magicpromo.server.ts');
+ const {getMagicpromoOffers}=load('packages/sdk/src/server.ts');
  const original=global.fetch;
  try {
   global.fetch=async(url,opts)=>{assert.equal(url.origin,'https://example.test');assert.equal(opts.redirect,'error');assert.equal(opts.headers.Authorization,'Bearer test');return Response.json({version:1,offers:[]});};

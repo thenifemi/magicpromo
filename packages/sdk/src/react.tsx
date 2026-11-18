@@ -1,21 +1,25 @@
+// Ready-made React banners for Hydrogen. Pass offers fetched on the server.
 import { useState, type CSSProperties } from "react";
 import {
   cartProgress,
+  itemLabel,
   offerMessage,
   selectOffer,
-  type Offer,
   type CartItem,
-  type Placement,
-} from "./types";
+  type Offer,
+} from "./core";
 
-type Props = {
+type BannerProps = {
   offers: Offer[];
   className?: string;
   style?: CSSProperties;
+  /** Drop merchant colours and padding; style it yourself. */
   unstyled?: boolean;
+  /** Prefix for links, e.g. "/fr" for market subfolders. */
   linkPrefix?: string;
 };
-function appearance(offer: Offer, props: Props): CSSProperties {
+
+function appearance(offer: Offer, props: BannerProps): CSSProperties {
   return {
     ...(props.unstyled
       ? {}
@@ -28,17 +32,16 @@ function appearance(offer: Offer, props: Props): CSSProperties {
     ...props.style,
   };
 }
+
 function OfferLink({ offer, prefix = "" }: { offer: Offer; prefix?: string }) {
   return (
-    <a
-      style={{ color: "inherit" }}
-      href={`${prefix}${offer.settings.destination}`}
-    >
+    <a style={{ color: "inherit" }} href={`${prefix}${offer.settings.destination}`}>
       {offer.settings.linkText}
     </a>
   );
 }
-export function AnnouncementBanner(props: Props) {
+
+export function AnnouncementBanner(props: BannerProps) {
   const offer = selectOffer(props.offers, "announcement");
   const [dismissed, setDismissed] = useState<string>();
   const identity = offer && `${offer.id}:${offer.settings.message}`;
@@ -62,8 +65,9 @@ export function AnnouncementBanner(props: Props) {
     </aside>
   );
 }
-export function ProductBanner(props: Props & { productId: string }) {
-  const offer = selectOffer(props.offers, "product", [], props.productId);
+
+export function ProductBanner(props: BannerProps & { productId: string }) {
+  const offer = selectOffer(props.offers, "product", { productId: props.productId });
   if (!offer) return null;
   return (
     <aside
@@ -76,17 +80,14 @@ export function ProductBanner(props: Props & { productId: string }) {
     </aside>
   );
 }
-export function CartProgressBanner(props: Props & { items: CartItem[] }) {
-  const offer = selectOffer(props.offers, "cart", props.items);
+
+export function CartProgressBanner(props: BannerProps & { items: CartItem[] }) {
+  const offer = selectOffer(props.offers, "cart", { items: props.items });
   if (!offer) return null;
   const progress = cartProgress(offer, props.items);
-  const units =
-    offer.mode === "distinct_products"
-      ? "different eligible products"
-      : "eligible items";
   const message = progress.qualified
     ? `You qualify for ${offer.percent}% off eligible items. Final discount calculated at checkout.`
-    : `Add ${progress.remaining} more ${units} to qualify for ${offer.percent}% off.`;
+    : `Add ${progress.remaining} more ${itemLabel(offer)} to qualify for ${offer.percent}% off.`;
   return (
     <aside
       className={props.className}
@@ -103,4 +104,3 @@ export function CartProgressBanner(props: Props & { items: CartItem[] }) {
     </aside>
   );
 }
-export type { Offer, CartItem, Placement };

@@ -2,6 +2,7 @@ import { randomUUID, createHash } from "node:crypto";
 import prisma from "../db.server";
 import { getDraft } from "./promotion-draft.server";
 import { isDevelopmentApp } from "../lib/environment";
+import { parsePromotionConfig } from "../../shared/promotion-config";
 
 type Graphql = (
   query: string,
@@ -104,26 +105,14 @@ export async function activatePromotion(
         "This promotion changed. Refresh and review the saved rules before activating.",
     };
   const config = configuration(draft);
-  if (
-    !draft.name.trim() ||
-    (!draft.collectionId && !config.productIds.length) ||
-    (draft.collectionId !== null && !/^gid:\/\/shopify\/Collection\/\d+$/.test(draft.collectionId)) ||
-    config.productIds.length > 100 ||
-    config.productIds.some(
-      (id) => !/^gid:\/\/shopify\/Product\/\d+$/.test(id),
-    ) ||
-    !Number.isInteger(config.discountPercent) ||
-    config.discountPercent < 1 ||
-    config.discountPercent > 100 ||
-    !Number.isInteger(config.minimumProducts) ||
-    config.minimumProducts < 1 ||
-    config.minimumProducts > 100 ||
-    !["distinct_products", "total_quantity"].includes(
-      config.qualificationMode,
-    ) ||
-    (!draft.collectionId && config.qualificationMode === "distinct_products" &&
-      new Set(config.productIds).size < config.minimumProducts)
-  ) {
+  const parsed = parsePromotionConfig(config);
+  // Business rule on top of shape validation: the minimum must be reachable.
+  const unreachable =
+    parsed.ok &&
+    !parsed.value.collectionIds &&
+    parsed.value.qualificationMode === "distinct_products" &&
+    new Set(parsed.value.productIds).size < parsed.value.minimumProducts;
+  if (!draft.name.trim() || !parsed.ok || unreachable) {
     return {
       error: "Save valid rules and enough eligible products before activating.",
     };

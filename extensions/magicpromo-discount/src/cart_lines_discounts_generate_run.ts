@@ -5,43 +5,7 @@ import {
   type CartLinesDiscountsGenerateRunResult,
 } from "../generated/api";
 
-type Configuration = {
-  version: 1;
-  productIds: string[];
-  collectionIds?: string[];
-  discountPercent: number;
-  minimumProducts: number;
-  qualificationMode: "distinct_products" | "total_quantity";
-};
-
-// Metafield JSON is external input, even though our app will normally write it.
-function readConfiguration(value: unknown): Configuration | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const config = value as Record<string, unknown>;
-  if (
-    config.version !== 1 ||
-    !Array.isArray(config.productIds) ||
-    (config.productIds.length < 1 && (!Array.isArray(config.collectionIds) || !config.collectionIds.length)) ||
-    (config.collectionIds !== undefined && (!Array.isArray(config.collectionIds) || config.collectionIds.length !== 1 || !config.collectionIds.every((id) => typeof id === "string" && /^gid:\/\/shopify\/Collection\/\d+$/.test(id)))) ||
-    config.productIds.length > 100 ||
-    !config.productIds.every(
-      (id) =>
-        typeof id === "string" && /^gid:\/\/shopify\/Product\/\d+$/.test(id),
-    ) ||
-    typeof config.discountPercent !== "number" ||
-    !Number.isInteger(config.discountPercent) ||
-    config.discountPercent < 1 ||
-    config.discountPercent > 100 ||
-    typeof config.minimumProducts !== "number" ||
-    !Number.isInteger(config.minimumProducts) ||
-    config.minimumProducts < 1 ||
-    config.minimumProducts > 100 ||
-    (config.qualificationMode !== "distinct_products" &&
-      config.qualificationMode !== "total_quantity")
-  )
-    return null;
-  return config as Configuration;
-}
+import { parsePromotionConfig } from "../../../shared/promotion-config";
 
 export function cartLinesDiscountsGenerateRun(
   input: CartInput,
@@ -50,8 +14,10 @@ export function cartLinesDiscountsGenerateRun(
   if (!input.discount.discountClasses.includes(DiscountClass.Product))
     return noDiscount;
 
-  const config = readConfiguration(input.discount.metafield?.jsonValue);
-  if (!config) return noDiscount;
+  // Metafield JSON is external input, even though our app normally writes it.
+  const parsed = parsePromotionConfig(input.discount.metafield?.jsonValue);
+  if (!parsed.ok) return noDiscount;
+  const config = parsed.value;
 
   const selectedProducts = new Set(config.productIds);
   const distinctProducts = new Set<string>();

@@ -1,7 +1,6 @@
 import { getCollection, collectionProductIds } from "./collection.server";
 import { data, redirect } from "react-router";
 import { authenticate } from "../shopify.server";
-import type { ProductSummary } from "../components/ProductPicker";
 import {
   activatePromotion,
   deactivatePromotion,
@@ -38,12 +37,9 @@ export async function loadEditor(request: Request, id: string | null) {
       }
     }
   `);
-  const result: {
-    data?: { products: { nodes: ProductSummary[] } };
-    errors?: { message: string }[];
-  } = await response.json();
+  const result = await response.json();
 
-  if (result.errors?.length || !result.data) {
+  if (!result.data) {
     throw new Response(
       "Unable to load products from Shopify. Please try again.",
       {
@@ -181,7 +177,7 @@ export const savePromotion = async (request: Request, id: string | null) => {
     data?: { nodes: ({ id?: string } | null)[] };
     errors?: { message: string }[];
   } = await response.json();
-  if (result.errors?.length || !result.data) {
+  if (!result.data) {
     return data(
       { error: "Could not verify products. Please try again." },
       { status: 502 },

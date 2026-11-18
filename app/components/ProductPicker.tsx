@@ -1,20 +1,10 @@
 import PolarisCheckbox from "./PolarisCheckbox";
 
-type Money = { amount: string; currencyCode: string };
+import type { MagicpromoProductsQuery } from "../types/admin.generated";
 
-export type ProductSummary = {
-  id: string;
-  title: string;
-  status: string;
-  variants: {
-    nodes: { id: string; title: string; price: string }[];
-    pageInfo: { hasNextPage: boolean };
-  };
-  priceRangeV2: { minVariantPrice: Money; maxVariantPrice: Money };
-  featuredMedia: {
-    preview: { image: { url: string; altText: string | null } | null } | null;
-  } | null;
-};
+// Derived from the query, so it can't drift from what Shopify returns.
+export type ProductSummary =
+  MagicpromoProductsQuery["products"]["nodes"][number];
 
 function formatPriceRange({
   minVariantPrice: min,

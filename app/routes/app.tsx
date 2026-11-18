@@ -6,6 +6,7 @@ import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import styles from "../styles/dev-environment.module.css";
 import { isDevelopmentApp } from "../lib/environment";
+import { POLARIS_URL } from "../polaris";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -19,9 +20,11 @@ export default function App() {
   const showDevBanner = isDevelopmentApp(apiKey);
 
   return (
-    <AppProvider apiKey={apiKey}>
+    <AppProvider apiKey={apiKey} polarisUrl={POLARIS_URL}>
       <s-app-nav>
-        <s-link href="/app" {...{ rel: "home" }}>Magicpromo</s-link>
+        <s-link href="/app" {...{ rel: "home" }}>
+          Magicpromo
+        </s-link>
         <s-link href="/app">Promotions</s-link>
         <s-link href="/app/storefront">Storefront</s-link>
         <s-link href="/app/hydrogen">Hydrogen</s-link>
@@ -31,8 +34,22 @@ export default function App() {
       </div>
       {showDevBanner && (
         <footer className={styles.banner} aria-label="App environment">
-          <s-text type="strong">Magicpromo Dev</s-text>
-          <s-text>Development environment</s-text>
+          <s-box
+            background="base"
+            borderStyle="solid none none none"
+            border="base"
+            padding="small-200"
+          >
+            <s-stack
+              direction="inline"
+              gap="small-200"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <s-badge tone="warning">Magicpromo Dev</s-badge>
+              <s-text color="subdued">Development environment</s-text>
+            </s-stack>
+          </s-box>
         </footer>
       )}
     </AppProvider>

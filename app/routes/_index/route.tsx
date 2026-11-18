@@ -3,6 +3,7 @@ import { redirect, Form, useActionData, useLoaderData } from "react-router";
 
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
+import { POLARIS_URL } from "../../polaris";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -27,7 +28,7 @@ export default function App() {
 
   return (
     <>
-      <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
+      <script src={POLARIS_URL} />
       <s-page heading="Magicpromo" inlineSize="small">
         <s-section heading="Log in to your store">
           <Form method="post">

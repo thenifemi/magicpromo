@@ -21,21 +21,11 @@
   flex: 1;
   min-height: 64px;
 }
-.preview {
-  border-radius: 8px;
-  background: #f5f4f8;
-  padding: 8px 8px 12px;
-  text-align: center;
-}
-.preview svg {
+/* Card look comes from <s-box>; this only sizes the illustration. */
+.previewArt {
   display: block;
   width: 100%;
   height: auto;
-}
-.previewCaption {
-  color: #616161;
-  font-size: 11px;
-  line-height: 16px;
 }
 @media (max-width: 760px) {
   .placements {
@@ -44,7 +34,7 @@
   .description {
     min-height: 0;
   }
-  .preview svg {
+  .previewArt {
     max-height: 180px;
   }
 }

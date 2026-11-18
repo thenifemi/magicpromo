@@ -13,5 +13,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await db.session.deleteMany({ where: { shop } });
   }
 
+  await db.hydrogenKey.updateMany({
+    where: { shop, appId: process.env.SHOPIFY_API_KEY || "", revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
   return new Response();
 };

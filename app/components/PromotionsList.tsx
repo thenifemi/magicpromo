@@ -99,9 +99,14 @@ export default function PromotionsList({
               </s-table-header-row>
               <s-table-body>
                 {filtered.map((p) => (
-                  <s-table-row key={p.id}>
+                  // Row clicks are forwarded to the link, which stays the accessible control.
+                  <s-table-row
+                    key={p.id}
+                    clickDelegate={`promotion-link-${p.id}`}
+                  >
                     <s-table-cell>
                       <s-link
+                        id={`promotion-link-${p.id}`}
                         href={`/app/promotions/${p.id}`}
                         onClick={(event) => {
                           event.preventDefault();

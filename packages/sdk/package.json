@@ -1,0 +1,26 @@
+{
+  "name": "@magicpromo/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Show Magicpromo offers in Liquid themes and Hydrogen storefronts.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./react": "./src/react.tsx"
+  },
+  "scripts": {
+    "build:theme": "esbuild src/theme/magicpromo-banner.ts --bundle --format=iife --target=es2020 --legal-comments=none --banner:js=\"// Generated from packages/sdk/src/theme. Do not edit; run pnpm build:theme.\" --outfile=../../extensions/magicpromo-banner/assets/magicpromo.js"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

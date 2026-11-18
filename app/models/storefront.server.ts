@@ -1,4 +1,5 @@
 import type { AdminGraphqlClient } from "@shopify/shopify-app-react-router/server";
+import type { Offer } from "@magicpromo/sdk";
 import { parseStorefrontSettings } from "../lib/storefront-settings";
 import { collectionProductIds } from "./collection.server";
 import { parsePromotionConfig } from "../../shared/promotion-config";
@@ -16,20 +17,12 @@ export const STOREFRONT_DISCOUNTS = `#graphql
     }
   }
 `;
-export type PublicOffer = {
-  id: string;
-  percent: number;
-  minimum: number;
-  mode: string;
-  eligibleProductIds: string[];
-  settings: NonNullable<ReturnType<typeof parseStorefrontSettings>>;
-};
 export async function storefrontOffers(
   graphql: AdminGraphqlClient,
   discountIds: string[],
   productIds: string[],
-): Promise<PublicOffer[]> {
-  const offers: PublicOffer[] = [];
+): Promise<Offer[]> {
+  const offers: Offer[] = [];
   for (let offset = 0; offset < discountIds.length; offset += 100) {
     const ids = discountIds.slice(offset, offset + 100);
     const response = await graphql(STOREFRONT_DISCOUNTS, {

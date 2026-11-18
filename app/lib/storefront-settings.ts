@@ -1,15 +1,7 @@
-export type StorefrontSettings = {
-  announcement: boolean;
-  product: boolean;
-  cart: boolean;
-  message: string;
-  linkText: string;
-  destination: string;
-  background: string;
-  foreground: string;
-  position: "top" | "bottom";
-  priority: number;
-};
+import type { OfferSettings } from "@magicpromo/sdk";
+
+// The app produces what the SDK consumes: one type, so they can't drift.
+export type StorefrontSettings = OfferSettings;
 export const defaultStorefrontSettings: StorefrontSettings = {
   announcement: false,
   product: false,

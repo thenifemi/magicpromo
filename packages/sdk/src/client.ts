@@ -26,6 +26,8 @@ export type MagicpromoOptions = {
   pollMs?: number;
   /** Skip work while hidden. Defaults to the page's visibility. */
   isVisible?: () => boolean;
+  /** Offers already loaded on the server: start "ready" with no flash. */
+  initialOffers?: Offer[];
 };
 
 export type MagicpromoClient = {
@@ -42,7 +44,9 @@ const pageIsVisible = () =>
 export function createMagicpromo(options: MagicpromoOptions): MagicpromoClient {
   const { pollMs = 0, isVisible = pageIsVisible } = options;
   const listeners = new Set<(state: MagicpromoState) => void>();
-  let state: MagicpromoState = { status: "loading", offers: [], items: [] };
+  let state: MagicpromoState = options.initialOffers
+    ? { status: "ready", offers: options.initialOffers, items: [] }
+    : { status: "loading", offers: [], items: [] };
   let inFlight: Promise<void> | null = null;
   let rerun = false;
   let destroyed = false;

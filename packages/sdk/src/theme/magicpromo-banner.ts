@@ -4,8 +4,8 @@
 import { createMagicpromo, type MagicpromoClient } from "../client";
 import {
   cartProgress,
-  formatTemplate,
-  itemLabel,
+  offerMessage,
+  progressMessage,
   selectOffer,
   type CartItem,
   type Offer,
@@ -124,14 +124,14 @@ class MagicpromoBanner extends HTMLElement {
   ): RenderContext {
     // Liquid passes translated strings as data attributes.
     const labels = { items: this.dataset.items ?? "", distinct: this.dataset.distinct ?? "" };
-    const values = { percent: offer.percent, items: itemLabel(offer, labels) };
+    const templates = {
+      progress: this.dataset.progress ?? "",
+      qualified: this.dataset.qualified ?? "",
+    };
     const progress = placement === "cart" ? cartProgress(offer, items) : undefined;
     const message = progress
-      ? formatTemplate(
-          (progress.qualified ? this.dataset.qualified : this.dataset.progress) ?? "",
-          { ...values, remaining: progress.remaining },
-        )
-      : formatTemplate(offer.settings.message, { ...values, minimum: offer.minimum });
+      ? progressMessage(offer, progress, templates, labels)
+      : offerMessage(offer, labels);
     return {
       placement,
       offer,

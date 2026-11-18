@@ -23,7 +23,9 @@ Import from `@magicpromo/sdk` (source in `packages/sdk`):
 
 - `@magicpromo/sdk/server`: `getMagicpromoOffers()`, an authenticated server fetch with a three-second timeout, no cache and no redirects. Server-only.
 - `@magicpromo/sdk`: the `Offer` type plus `selectOffer()`, `cartProgress()` and `offerMessage()`. Use these to render your own elements.
-- `@magicpromo/sdk/react`: ready-made announcement, product and cart banners.
+- `@magicpromo/sdk/react`: `MagicpromoProvider` and `useOffer()` to render offers with your own components, plus ready-made announcement, product and cart banners.
+
+See `packages/sdk/README.md` for a full walkthrough.
 
 The same core powers the Liquid theme extension, so selection and progress rules match on every storefront. The sibling `timis-chocolates-hydrogen` project includes a working integration pattern with a server resource route and `useOffers` hook.
 

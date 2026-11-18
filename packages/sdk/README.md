@@ -57,30 +57,66 @@ Magicpromo.render("cart", (context) =>
 
 A renderer that throws hides only its own banner. Call `Magicpromo.refresh()` after changing the cart in a way Magicpromo can't detect.
 
-## Hydrogen
+## Hydrogen: bring your own component
 
-Create an API key in Magicpromo → Hydrogen and keep it server-side.
+Create an API key in Magicpromo → Hydrogen. Keep it on the server, behind a route of your own:
 
 ```ts
-// app/routes/api.magicpromo.ts (server)
+// app/routes/api.magicpromo.ts
 import { getMagicpromoOffers } from "@magicpromo/sdk/server";
 
-const offers = await getMagicpromoOffers(
-  { endpoint: env.MAGICPROMO_API_URL, apiKey: env.MAGICPROMO_API_KEY },
-  productIds,
-);
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const products = new URL(request.url).searchParams.get("products")?.split(",") ?? [];
+  const offers = await getMagicpromoOffers(
+    { endpoint: context.env.MAGICPROMO_API_URL, apiKey: context.env.MAGICPROMO_API_KEY },
+    products.filter(Boolean),
+  ).catch(() => []); // banners are optional; never break the page
+  return Response.json({ offers }, { headers: { "Cache-Control": "no-store" } });
+}
 ```
 
-Render with the ready-made components, or your own using the core helpers:
+Wrap your layout once, passing the cart:
 
 ```tsx
-import { ProductBanner } from "@magicpromo/sdk/react";
-import { selectOffer, offerMessage } from "@magicpromo/sdk";
+import { MagicpromoProvider } from "@magicpromo/sdk/react";
 
-<ProductBanner offers={offers} productId={product.id} unstyled className="my-banner" />;
-
-const offer = selectOffer(offers, "product", { productId: product.id });
+<MagicpromoProvider
+  items={cart.lines.nodes.map((line) => ({
+    productId: line.merchandise.product.id,
+    quantity: line.quantity,
+  }))}
+  productIds={product ? [product.id] : []}
+  initialOffers={offersFromLoader}
+>
+  {children}
+</MagicpromoProvider>;
 ```
+
+Then render offers with your own components:
+
+```tsx
+import { useOffer } from "@magicpromo/sdk/react";
+
+function CartNudge() {
+  const view = useOffer("cart");
+  if (!view.offer) return null;
+  return (
+    <div className="cart-nudge">
+      <p>{view.message}</p>
+      <meter value={view.progress?.count} max={view.offer.minimum} />
+    </div>
+  );
+}
+```
+
+| Hook | Returns |
+| --- | --- |
+| `useOffer(placement, { productId? })` | `{ offer: undefined }` or `{ offer, message, progress? }` |
+| `useMagicpromo()` | Raw client state: `{ status: "loading" \| "ready" \| "error", offers, items }` |
+
+Progress updates instantly as `items` change. Offers refresh when the set of products changes and every 30 seconds while the tab is visible. Pass `labels` and `templates` to the provider for translations.
+
+Prefer ready-made markup? `AnnouncementBanner`, `ProductBanner` and `CartProgressBanner` take `offers` and use the same rules (`unstyled`, `className` and `linkPrefix` supported). `describeOffer()` is the non-hook version of `useOffer`.
 
 ## Core API
 
@@ -89,7 +125,8 @@ const offer = selectOffer(offers, "product", { productId: product.id });
 | `selectOffer(offers, placement, { items?, productId? })` | The one offer to show; `offers` must be in display order. |
 | `cartProgress(offer, items)` | `{ count, remaining, qualified }` for the cart. |
 | `offerMessage(offer, labels?)` | Merchant message with `{minimum}`, `{percent}`, `{items}` filled in. |
-| `createMagicpromo({ offers, cart?, productIds?, pollMs? })` | Data client: `subscribe`, `refresh`, `getState`, `destroy`. |
+| `progressMessage(offer, progress, templates?, labels?)` | Cart text: "Add 1 more…" or "You qualify…". |
+| `createMagicpromo({ offers, cart?, productIds?, pollMs?, initialOffers? })` | Data client: `subscribe`, `refresh`, `getState`, `destroy`. |
 
 `offers` and `cart` are pluggable sources, so the client works with the app proxy, the API, or test fakes.
 

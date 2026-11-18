@@ -104,6 +104,29 @@ export function formatTemplate(
 export const itemLabel = (offer: Offer, labels: ItemLabels = defaultItemLabels) =>
   offer.mode === "distinct_products" ? labels.distinct : labels.items;
 
+/** Cart texts with `{remaining}`, `{percent}` and `{items}`; themes pass translations. */
+export type ProgressTemplates = { progress: string; qualified: string };
+
+export const defaultProgressTemplates: ProgressTemplates = {
+  progress: "Add {remaining} more {items} to qualify for {percent}% off.",
+  qualified:
+    "You qualify for {percent}% off eligible items. Final discount calculated at checkout.",
+};
+
+/** The cart banner's text for this progress. */
+export function progressMessage(
+  offer: Offer,
+  progress: CartProgress,
+  templates: ProgressTemplates = defaultProgressTemplates,
+  labels: ItemLabels = defaultItemLabels,
+) {
+  return formatTemplate(progress.qualified ? templates.qualified : templates.progress, {
+    remaining: progress.remaining,
+    percent: offer.percent,
+    items: itemLabel(offer, labels),
+  });
+}
+
 /** The merchant's message with `{minimum}`, `{percent}` and `{items}` filled in. */
 export function offerMessage(offer: Offer, labels: ItemLabels = defaultItemLabels) {
   return formatTemplate(offer.settings.message, {

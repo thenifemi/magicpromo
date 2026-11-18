@@ -39,13 +39,31 @@
     );
   }
   var itemLabel = (offer, labels = defaultItemLabels) => offer.mode === "distinct_products" ? labels.distinct : labels.items;
+  var defaultProgressTemplates = {
+    progress: "Add {remaining} more {items} to qualify for {percent}% off.",
+    qualified: "You qualify for {percent}% off eligible items. Final discount calculated at checkout."
+  };
+  function progressMessage(offer, progress, templates = defaultProgressTemplates, labels = defaultItemLabels) {
+    return formatTemplate(progress.qualified ? templates.qualified : templates.progress, {
+      remaining: progress.remaining,
+      percent: offer.percent,
+      items: itemLabel(offer, labels)
+    });
+  }
+  function offerMessage(offer, labels = defaultItemLabels) {
+    return formatTemplate(offer.settings.message, {
+      minimum: offer.minimum,
+      percent: offer.percent,
+      items: itemLabel(offer, labels)
+    });
+  }
 
   // src/client.ts
   var pageIsVisible = () => typeof document === "undefined" || !document.hidden;
   function createMagicpromo(options) {
     const { pollMs = 0, isVisible = pageIsVisible } = options;
     const listeners = /* @__PURE__ */ new Set();
-    let state = { status: "loading", offers: [], items: [] };
+    let state = options.initialOffers ? { status: "ready", offers: options.initialOffers, items: [] } : { status: "loading", offers: [], items: [] };
     let inFlight = null;
     let rerun = false;
     let destroyed = false;
@@ -283,12 +301,12 @@
     }
     context(placement, offer, items, dismiss) {
       const labels = { items: this.dataset.items ?? "", distinct: this.dataset.distinct ?? "" };
-      const values = { percent: offer.percent, items: itemLabel(offer, labels) };
+      const templates = {
+        progress: this.dataset.progress ?? "",
+        qualified: this.dataset.qualified ?? ""
+      };
       const progress = placement === "cart" ? cartProgress(offer, items) : void 0;
-      const message = progress ? formatTemplate(
-        (progress.qualified ? this.dataset.qualified : this.dataset.progress) ?? "",
-        { ...values, remaining: progress.remaining }
-      ) : formatTemplate(offer.settings.message, { ...values, minimum: offer.minimum });
+      const message = progress ? progressMessage(offer, progress, templates, labels) : offerMessage(offer, labels);
       return {
         placement,
         offer,

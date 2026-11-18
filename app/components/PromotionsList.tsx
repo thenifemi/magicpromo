@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { DEVELOPER_MODAL_ID, DeveloperElementsModal } from "./DeveloperElements";
+import { PLACEMENT_LABELS, enabledPlacements } from "../lib/storefront-display";
 type PromotionListItem = {
   id: string;
   collectionTitle?: string | null;
+  storefrontSettings?: string;
   usageCount: number | null;
   discountStatus: string | null;
   shopifyDiscountId?: string | null;
@@ -89,6 +92,7 @@ export default function PromotionsList({
                 <s-table-header listSlot="primary">Promotion</s-table-header>
                 <s-table-header listSlot="secondary">Status</s-table-header>
                 <s-table-header listSlot="labeled">Discount</s-table-header>
+                <s-table-header listSlot="labeled">Shown on</s-table-header>
                 <s-table-header listSlot="labeled" format="numeric">
                   Eligibility
                 </s-table-header>
@@ -177,6 +181,11 @@ export default function PromotionsList({
                         ? "eligible items"
                         : "different products"}
                     </s-table-cell>
+                    <s-table-cell>
+                      {enabledPlacements(p.storefrontSettings)
+                        .map((placement) => PLACEMENT_LABELS[placement])
+                        .join(", ") || "Not shown"}
+                    </s-table-cell>
                     <s-table-cell>{p.collectionTitle || `${p._count.products} products`}</s-table-cell>
                     <s-table-cell>
                       {p.usageCount === null
@@ -205,6 +214,21 @@ export default function PromotionsList({
           </s-box>
         </s-section>
       )}
+      {promotions.length > 0 && (
+        <s-section heading="Show offers with your own elements">
+          <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
+            <s-paragraph>
+              Prefer your theme’s own badge or cart line over the Magicpromo
+              banner? Developers can render any offer with their own elements
+              while Magicpromo keeps choosing the offer and tracking the cart.
+            </s-paragraph>
+            <s-button commandFor={DEVELOPER_MODAL_ID} command="--show" icon="code">
+              Get developer snippet
+            </s-button>
+          </s-grid>
+        </s-section>
+      )}
+      <DeveloperElementsModal placements={[]} />
     </s-page>
   );
 }

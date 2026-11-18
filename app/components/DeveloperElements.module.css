@@ -1,0 +1,9 @@
+/* App-owned code block: layout and font only, so it follows the admin theme. */
+.code {
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}

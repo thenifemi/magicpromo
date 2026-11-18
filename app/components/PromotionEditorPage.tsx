@@ -7,6 +7,8 @@ import PromotionActivation from "./PromotionActivation";
 import CartPreview from "./CartPreview";
 import QualificationChoice from "./QualificationChoice";
 import ProductPicker, { type ProductSummary } from "./ProductPicker";
+import { DeveloperElementsModal, StorefrontDisplayOptions } from "./DeveloperElements";
+import { enabledPlacements } from "../lib/storefront-display";
 
 type Draft = {
   id: string;
@@ -17,6 +19,7 @@ type Draft = {
   productIds: string[];
   collectionId?: string | null;
   collectionTitle?: string | null;
+  storefrontSettings?: string;
   combineProductDiscounts: boolean;
   combineOrderDiscounts: boolean;
   combineShippingDiscounts: boolean;
@@ -259,10 +262,16 @@ export default function PromotionEditorPage({
           </s-stack>
         </s-section>
         {eligibility === "products" && <ProductPicker products={products} selectedIds={selectedIds} onSelectionChange={setSelectedIds} />}
-        {draft && <s-section heading="Storefront messaging">
-          <s-paragraph>Configure announcement bars, product banners, and cart progress on a separate page.</s-paragraph>
-          <s-button {...(dirty ? { disabled: true } : {})} href={`/app/storefront/${draft.id}`}>Configure messaging</s-button>
-          {dirty && <s-paragraph color="subdued">Save your changes before opening messaging.</s-paragraph>}
+        {draft && <s-section heading="Storefront display">
+          <s-stack gap="base">
+            <s-paragraph>Choose how shoppers see this offer: Magicpromo’s banner, or your theme’s own elements.</s-paragraph>
+            <StorefrontDisplayOptions
+              placements={enabledPlacements(draft.storefrontSettings)}
+              configureHref={`/app/storefront/${draft.id}`}
+              configureDisabled={dirty}
+            />
+            {dirty && <s-paragraph color="subdued">Save your changes before opening messaging.</s-paragraph>}
+          </s-stack>
         </s-section>}
         <s-section heading="Combinations">
           <s-stack gap="small">
@@ -443,6 +452,12 @@ export default function PromotionEditorPage({
           Discard changes
         </s-button>
       </s-modal>
+      {draft && (
+        <DeveloperElementsModal
+          placements={enabledPlacements(draft.storefrontSettings)}
+          offerId={draft.shopifyDiscountId}
+        />
+      )}
     </s-page>
   );
 }

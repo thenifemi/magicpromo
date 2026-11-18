@@ -4,6 +4,8 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { authenticate } from "../shopify.server";
+import styles from "../styles/dev-environment.module.css";
+import { isDevelopmentApp } from "../lib/environment";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -14,10 +16,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>();
+  const showDevBanner = isDevelopmentApp(apiKey);
 
   return (
     <AppProvider apiKey={apiKey}>
-      <Outlet />
+      <s-app-nav>
+        <s-link href="/app" {...{ rel: "home" }}>Magicpromo</s-link>
+        <s-link href="/app">Promotions</s-link>
+        <s-link href="/app/storefront">Storefront</s-link>
+        <s-link href="/app/hydrogen">Hydrogen</s-link>
+      </s-app-nav>
+      <div className={showDevBanner ? styles.content : undefined}>
+        <Outlet />
+      </div>
+      {showDevBanner && (
+        <footer className={styles.banner} aria-label="App environment">
+          <s-text type="strong">Magicpromo Dev</s-text>
+          <s-text>Development environment</s-text>
+        </footer>
+      )}
     </AppProvider>
   );
 }

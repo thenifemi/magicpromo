@@ -46,6 +46,10 @@ model PromotionDraft {
   publishedFingerprint String?
   activationToken String?
 
+  collectionId String?
+  collectionTitle String?
+  storefrontSettings String @default("{}")
+
   qualificationMode String @default("distinct_products")
   discountPercent Int @default(15)
   minimumProducts Int @default(3)
@@ -66,4 +70,23 @@ model PromotionDraftProduct {
   draft PromotionDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
 
   @@id([draftId, productId])
+}
+
+model StorefrontDisplayOrder {
+  shop String @id
+  promotionIds String @default("[]")
+  revision Int @default(0)
+}
+
+model HydrogenKey {
+  id String @id @default(cuid())
+  shop String
+  appId String
+  label String
+  keyHash String @unique
+  prefix String
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime?
+  revokedAt DateTime?
+  @@index([shop, appId])
 }

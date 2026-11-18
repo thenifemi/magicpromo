@@ -10,7 +10,7 @@ generator client {
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
-  url      = "file:dev.sqlite"
+  url      = "file:magicpromo-dev.sqlite"
 }
 
 model Session {
@@ -45,6 +45,10 @@ model PromotionDraft {
   publishedFingerprint String?
   activationToken String?
 
+  collectionId String?
+  collectionTitle String?
+  storefrontSettings String @default("{}")
+
   qualificationMode String @default("distinct_products")
   discountPercent Int @default(15)
   minimumProducts Int @default(3)
@@ -65,4 +69,23 @@ model PromotionDraftProduct {
   draft PromotionDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
 
   @@id([draftId, productId])
+}
+
+model StorefrontDisplayOrder {
+  shop String @id
+  promotionIds String @default("[]")
+  revision Int @default(0)
+}
+
+model HydrogenKey {
+  id String @id @default(cuid())
+  shop String
+  appId String
+  label String
+  keyHash String @unique
+  prefix String
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime?
+  revokedAt DateTime?
+  @@index([shop, appId])
 }

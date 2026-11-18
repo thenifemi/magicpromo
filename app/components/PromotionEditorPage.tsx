@@ -3,7 +3,6 @@ import { useState, useCallback, useRef } from "react";
 import { useFetcher, useNavigate, useBeforeUnload } from "react-router";
 import type { savePromotion } from "../models/promotion-editor.server";
 import styles from "./PromotionEditorPage.module.css";
-import PolarisCheckbox from "./PolarisCheckbox";
 import PromotionActivation from "./PromotionActivation";
 import CartPreview from "./CartPreview";
 import QualificationChoice from "./QualificationChoice";
@@ -268,20 +267,26 @@ export default function PromotionEditorPage({
         <s-section heading="Combinations">
           <s-stack gap="small">
             <s-paragraph>This promotion can combine with:</s-paragraph>
-            <PolarisCheckbox
+            <s-checkbox
               label="Product discounts"
               checked={combineProductDiscounts}
-              onChange={setCombineProductDiscounts}
+              onChange={(event) =>
+                setCombineProductDiscounts(event.currentTarget.checked)
+              }
             />
-            <PolarisCheckbox
+            <s-checkbox
               label="Order discounts"
               checked={combineOrderDiscounts}
-              onChange={setCombineOrderDiscounts}
+              onChange={(event) =>
+                setCombineOrderDiscounts(event.currentTarget.checked)
+              }
             />
-            <PolarisCheckbox
+            <s-checkbox
               label="Shipping discounts"
               checked={combineShippingDiscounts}
-              onChange={setCombineShippingDiscounts}
+              onChange={(event) =>
+                setCombineShippingDiscounts(event.currentTarget.checked)
+              }
             />
             <s-paragraph color="subdued">
               The other discount must also allow the combination. Shopify

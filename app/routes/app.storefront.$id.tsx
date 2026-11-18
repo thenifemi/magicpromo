@@ -19,7 +19,6 @@ import {
   parseStorefrontSettings,
   storefrontSettingsFromJson,
 } from "../lib/storefront-settings";
-import PolarisCheckbox from "../components/PolarisCheckbox";
 import QualificationChoice from "../components/QualificationChoice";
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -174,20 +173,29 @@ function MessagingEditor({
         </s-banner>
         <s-section heading="Placements">
           <s-stack gap="base">
-            <PolarisCheckbox
+            <s-checkbox
               label="Sitewide announcement bar"
               checked={value.announcement}
-              onChange={(announcement) => setValue({ ...value, announcement })}
+              onChange={(event) =>
+                setValue({
+                  ...value,
+                  announcement: event.currentTarget.checked,
+                })
+              }
             />
-            <PolarisCheckbox
+            <s-checkbox
               label="Inline banner on eligible product pages"
               checked={value.product}
-              onChange={(product) => setValue({ ...value, product })}
+              onChange={(event) =>
+                setValue({ ...value, product: event.currentTarget.checked })
+              }
             />
-            <PolarisCheckbox
+            <s-checkbox
               label="Cart progress banner"
               checked={value.cart}
-              onChange={(cart) => setValue({ ...value, cart })}
+              onChange={(event) =>
+                setValue({ ...value, cart: event.currentTarget.checked })
+              }
             />
             <s-paragraph color="subdued">
               Enable the theme embed for announcements; add the offer block for

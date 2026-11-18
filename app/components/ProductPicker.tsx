@@ -1,5 +1,3 @@
-import PolarisCheckbox from "./PolarisCheckbox";
-
 import type { MagicpromoProductsQuery } from "../types/admin.generated";
 
 // Derived from the query, so it can't drift from what Shopify returns.
@@ -112,12 +110,12 @@ export default function ProductPicker({
                       ) : (
                         <s-icon type="product" />
                       )}
-                      <PolarisCheckbox
+                      <s-checkbox
                         checked={selectedIds.includes(product.id)}
-                        onChange={(checked) =>
-                          toggleProduct(product.id, checked)
-                        }
                         label={product.title}
+                        onChange={(event) =>
+                          toggleProduct(product.id, event.currentTarget.checked)
+                        }
                       />
                     </s-stack>
                   </s-table-cell>
